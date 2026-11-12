@@ -29,6 +29,9 @@ Shadow off, shadow-inclusive fit, and stable Object Only fit:
 
 These are real application/generated examples. Green is the preview background, not an added sprite color.
 
+Blender to Pixel conversion looks like this.
+![Blender to Pixel Conversion](docs/images/BlenderToPixel.png)
+
 More examples: [animated comparison](docs/images/grouping.gif) · [sprite PNG](docs/images/mine.png).
 
 ## Technologies
