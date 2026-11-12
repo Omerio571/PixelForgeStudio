@@ -1,23 +1,25 @@
 # Changelog
 
-Meaningful development changes, newest first. Historical entries were reconstructed from saved versioned source/documentation and verification records; no public release dates or publication status are asserted.
-
-## Unreleased
-
-Future changes will be recorded here. License selection and GitHub publication remain owner decisions.
+Meaningful development changes, newest first. Historical entries follow saved versioned source/documentation and verification records; no historical release dates are assumed.
 
 ## v0.3.3 — Grouped silhouettes and stable shadow fit
 
 ### Added
 - Unified/Conservative grouped-outline choice and explicit Object Only/Object + Ground Shadow fit bounds.
 - GitHub preparation: original README, this changelog, targeted ignore rules, a starter palette example and selected real application/sprite images.
+- MIT license for original source, third-party notices, portable Windows x64 ZIP packaging and release notes.
+
+### Changed
+- Shorter introductory README; usage and release instructions moved to focused guides.
+- Source and portable launchers share one launch path; packaging includes runtime notices and required bridge resources.
+- Published assemblies omit debug symbols and their embedded local build paths.
 
 ### Fixed
 - Unified mode outlines the combined group exterior rather than giving enclosed members heavy individual borders. Transparent gaps, shading, highlights, component layers and independent animation remain intact.
 - Object Only is now the default: ground-shadow on/off, softness, strength and light-direction edits no longer change model fit scale or position. Shadows may clip with a warning instead of silently shrinking the object.
 - Optional historical compiled comparisons no longer require private backup/output folders for normal source builds.
 
-Verified with real Blender/Aseprite conversion, all four isometric directions, four animated poses, shadow variants, fixed density, true isometric and source-file preservation. Publication and license selection remain pending owner approval.
+Verified with real Blender/Aseprite conversion, all four isometric directions, four animated poses, shadow variants, fixed density, true isometric and source-file preservation. See the release verification report for packaged-build checks. GitHub publication remains pending owner approval.
 
 ## v0.3.2 — Comparison and interface improvements
 
