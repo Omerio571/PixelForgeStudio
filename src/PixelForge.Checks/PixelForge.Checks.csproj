@@ -1,0 +1,1 @@
+<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType></PropertyGroup><ItemGroup><ProjectReference Include="../PixelForge.Core/PixelForge.Core.csproj" /><ProjectReference Include="../PixelForge.Desktop/PixelForge.Desktop.csproj" /></ItemGroup></Project>
