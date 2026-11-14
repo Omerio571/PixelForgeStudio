@@ -1,4 +1,4 @@
-<Window x:Class="PixelForge.Desktop.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:PixelForge.Desktop" Title="PixelForge Studio v0.4.0" Width="1440" Height="1000" MinWidth="1000" MinHeight="740" Background="{DynamicResource Window}" Foreground="{DynamicResource Text}" FontFamily="Segoe UI" UseLayoutRounding="True">
+<Window x:Class="PixelForge.Desktop.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:PixelForge.Desktop" Title="PixelForge Studio v0.4.0" WindowStartupLocation="CenterScreen" Width="1440" Height="1000" MinWidth="1000" MinHeight="740" Background="{DynamicResource Window}" Foreground="{DynamicResource Text}" FontFamily="Segoe UI" UseLayoutRounding="True">
   <Window.Resources>
     <BooleanToVisibilityConverter x:Key="VisibleWhen" />
   </Window.Resources>

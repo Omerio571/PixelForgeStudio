@@ -14,6 +14,9 @@ public partial class MainWindow
 
     private void InitializePresentation()
     {
+        // Avoid Windows' cascading placement putting the tall workspace off screen.
+        Width = Math.Max(MinWidth, Math.Min(Width, SystemParameters.WorkArea.Width));
+        Height = Math.Max(MinHeight, Math.Min(Height, SystemParameters.WorkArea.Height));
         SetChecker();
         DpiChanged += (_, _) => UpdateZoom();
         foreach (var section in SettingsSections())

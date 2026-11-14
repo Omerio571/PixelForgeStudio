@@ -48,11 +48,18 @@ internal static class ModernUiChecks
         void Capture(string name)
         {
             window.UpdateLayout();
-            var image = new RenderTargetBitmap((int)window.ActualWidth, (int)window.ActualHeight, 96, 96, PixelFormats.Pbgra32);
-            image.Render(window); var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(image));
+            var surface = (FrameworkElement)window.Content;
+            var dpi = VisualTreeHelper.GetDpi(surface);
+            var image = new RenderTargetBitmap((int)Math.Ceiling(surface.ActualWidth * dpi.DpiScaleX),
+                (int)Math.Ceiling(surface.ActualHeight * dpi.DpiScaleY), dpi.PixelsPerInchX, dpi.PixelsPerInchY, PixelFormats.Pbgra32);
+            image.Render(surface); var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(image));
             using var stream = File.Create(Path.Combine(root, name + ".png")); encoder.Save(stream);
         }
         string Settings() => JsonSerializer.Serialize((AssetSettings)Call("ReadSettings")!);
+        await Layout();
+        var area = SystemParameters.WorkArea;
+        Check(window.Left >= area.Left && window.Top >= area.Top && window.Top + window.ActualHeight <= area.Bottom + 1,
+            "startup centers the complete workspace within the available work area");
         Check(Find<StackPanel>("SettingsPanel").Children.OfType<Expander>().Count() == 7, "all seven settings sections retained");
         Find<TextBox>("ModelPath").Text = model;
         var before = Settings();

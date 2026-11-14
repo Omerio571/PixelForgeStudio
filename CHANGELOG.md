@@ -9,6 +9,7 @@ Meaningful development changes, newest first. Historical entries follow saved ve
 - Moved playback FPS, duration, timeline and transport together; secondary exports are available from the preview's ••• menu. Settings load/save is in the header.
 - Retained palette editing, strict outline-color approval, exact numeric values, render history/favorites, saved-frame comparison and all rendering/export services.
 - Kept warnings in a stable scrollable area and made preview zoom use integer device pixels at fractional Windows display scaling.
+- Centered startup placement and capped initial window dimensions to the available desktop work area.
 - Normal development now uses master. No branch creation, automatic push or release publication.
 
 ## v0.3.4 — Workflow and UI cleanup
