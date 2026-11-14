@@ -34,7 +34,7 @@ public partial class MainWindow
         foreach(Button button in ResolutionPresets.Children)
         {
             bool selected=int.TryParse(WidthInput.Text,out int w)&&int.TryParse(HeightInput.Text,out int h)&&w==h&&w.ToString()==button.Tag.ToString();
-            if(selected){button.Background=new SolidColorBrush(Color.FromRgb(140,216,189));button.FontWeight=FontWeights.Bold;}
+            if(selected){button.SetResourceReference(Control.BackgroundProperty,"Selected");button.FontWeight=FontWeights.Bold;}
             else{button.ClearValue(Control.BackgroundProperty);button.ClearValue(Control.FontWeightProperty);}
             System.Windows.Automation.AutomationProperties.SetHelpText(button,selected?"Selected square resolution":"Set width and height; Generate applies the change");
         }
@@ -64,12 +64,12 @@ public partial class MainWindow
     {
         if(ComparisonPanel.Visibility==Visibility.Visible){CloseComparison();return;}
         PausePlayback();PlaybackTools.Visibility=Visibility.Collapsed;PreviewBorder.Visibility=Visibility.Collapsed;TimelinePanel.Visibility=Visibility.Collapsed;OutputInfo.Visibility=Visibility.Collapsed;ExportPanel.Visibility=Visibility.Collapsed;
-        ComparisonPanel.Visibility=Visibility.Visible;CompareButton.Content="Back to preview";RefreshHistory();SetChecker();UpdateComparisonZoom();
+        ComparisonPanel.Visibility=Visibility.Visible;CompareButton.SetResourceReference(Control.BorderBrushProperty,"Accent");CompareButton.BorderThickness=new Thickness(0,0,0,2);PreviewTab.BorderThickness=new Thickness(0);RefreshHistory();SetChecker();UpdateComparisonZoom();
     }
     private void CloseComparison()
     {
         if(ComparisonPanel is null)return;
-        ComparisonPanel.Visibility=Visibility.Collapsed;PlaybackTools.Visibility=Visibility.Visible;CompareButton.Content="Compare";PreviewBorder.Visibility=Visibility.Visible;
+        ComparisonPanel.Visibility=Visibility.Collapsed;PlaybackTools.Visibility=Visibility.Visible;CompareButton.BorderThickness=new Thickness(0);PreviewTab.BorderThickness=new Thickness(0,0,0,2);PreviewBorder.Visibility=Visibility.Visible;
         TimelinePanel.Visibility=playbackFrames.Length>1?Visibility.Visible:Visibility.Collapsed;OutputInfo.Visibility=Visibility.Visible;ExportPanel.Visibility=Visibility.Visible;
     }
     private void ComparisonSelectionChanged(object sender,SelectionChangedEventArgs e)
@@ -148,7 +148,7 @@ public partial class MainWindow
         var layout=comparisonLayout;bool side=CompareModeInput.SelectedIndex==1;
         double gap=side?24:0;double logicalWidth=layout.Width*(side?2:1);
         double fit=Math.Min(Math.Max(1,ComparisonScroll.ActualWidth-gap-20)/logicalWidth,Math.Max(1,ComparisonScroll.ActualHeight-20)/layout.Height);
-        comparisonZoom=ZoomInput.SelectedIndex==0?(fit>=1?Math.Floor(fit):Math.Max(.01,fit)):Math.Pow(2,ZoomInput.SelectedIndex-1);
+        comparisonZoom=PixelPreviewScale(fit,ZoomInput.SelectedIndex,VisualTreeHelper.GetDpi(this).DpiScaleX);
         double w=layout.Width*comparisonZoom,h=layout.Height*comparisonZoom;
         ComparisonCanvas.Width=w*(side?2:1)+gap;ComparisonCanvas.Height=h;
         CompareHostA.Width=CompareHostB.Width=w;CompareHostA.Height=CompareHostB.Height=h;Canvas.SetLeft(CompareHostA,0);Canvas.SetLeft(CompareHostB,side?w+gap:0);
@@ -173,7 +173,7 @@ public partial class MainWindow
     {
         if(updatingCompareFrame)return true;bool a=box==CompareFrameA;var output=a?compareA:compareB;
         if(output is null)return true;
-        if(!int.TryParse(box.Text,out int frame)||frame<1||frame>output.Frames.Length){ComparisonInfo.Text=$"Enter a frame from 1–{output.Frames.Length}. Last valid frame remains visible; Escape cancels.";box.BorderBrush=Brushes.Salmon;return false;}
+        if(!int.TryParse(box.Text,out int frame)||frame<1||frame>output.Frames.Length){ComparisonInfo.Text=$"Enter a frame from 1–{output.Frames.Length}. Last valid frame remains visible; Escape cancels.";box.SetResourceReference(Control.BorderBrushProperty,"Error");return false;}
         box.ClearValue(Control.BorderBrushProperty);if(a)frameA=frame-1;else frameB=frame-1;ShowComparisonFrames();return true;
     }
     private void ComparisonFrameKey(object sender,KeyEventArgs e)

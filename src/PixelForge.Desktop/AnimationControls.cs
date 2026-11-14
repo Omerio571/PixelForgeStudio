@@ -53,7 +53,7 @@ public partial class MainWindow
     }
     private void LoadPlayback(ConversionOutput generated,int fps)
     {
-        PausePlayback();playbackFps=fps;timingDirty=false;
+        PausePlayback();UpdateCanvasInfo(generated);playbackFps=fps;timingDirty=false;
         changingPreviewFps=true;PreviewFpsInput.Text=fps.ToString();changingPreviewFps=false;
         ApplyTimingButton.IsEnabled=false;TimingInfo.Text="Playback timing is independent of Blender frame sampling.";
         playbackFrames=generated.Frames.Select(frame=>
@@ -92,7 +92,7 @@ public partial class MainWindow
     {
         if(output is null||!EnsureTimingApplied())return;var dialog=new SaveFileDialog{Filter="PNG spritesheet|*.png",FileName=Path.GetFileNameWithoutExtension(ModelPath.Text)+".sheet.png",OverwritePrompt=true};
         Prepare(dialog,"sheets");if(dialog.ShowDialog()!=true)return;
-        if(File.Exists(Path.ChangeExtension(dialog.FileName,"json"))&&MessageBox.Show(this,"Replace the existing companion JSON metadata too?","Spritesheet metadata",MessageBoxButton.YesNo)!=MessageBoxResult.Yes)return;
+        if(File.Exists(Path.ChangeExtension(dialog.FileName,"json"))&&ThemedMessage("Replace the existing companion JSON metadata too?","Spritesheet metadata",MessageBoxButton.YesNo)!=MessageBoxResult.Yes)return;
         AssetExport.SaveSpritesheet(output,dialog.FileName);RememberFile("sheets",dialog.FileName);Status.Text="Spritesheet PNG and JSON saved: "+dialog.FileName;
     });
     private void SaveFrames(object sender,RoutedEventArgs e)=>Try(()=>
@@ -141,7 +141,7 @@ public partial class MainWindow
         if(!int.TryParse(PreviewFpsInput.Text,out int fps)||fps is < 1 or > 120)throw new ArgumentException("Enter playback FPS from 1–120 before saving.");
         if(!timingDirty)return true;
         const string notice="Save and close this animation in Aseprite first. Unsaved external changes cannot be detected or preserved.\n\nApply timing to the latest SAVED native file? Only duration fields change; every cel, layer, tag and artwork byte is preserved, with a backup. PNG pixels are untouched. Reopen the file in Aseprite afterward to see the new speed.\n\nUse Reload saved edits first if saved pixel corrections should also appear in the preview and PNG exports.";
-        if(MessageBox.Show(this,notice,"Apply animation timing",MessageBoxButton.OKCancel,MessageBoxImage.Information)!=MessageBoxResult.OK)return false;
+        if(ThemedMessage(notice,"Apply animation timing",MessageBoxButton.OKCancel,MessageBoxImage.Information)!=MessageBoxResult.OK)return false;
         if(session?.IsManaged(output.Directory)==true&&!session.Unchanged(output.Directory))
         {PreserveCurrentCore();if(session.IsManaged(output.Directory))throw new IOException("Preserve the edited render before applying timing.");}
         output=AnimationTiming.Apply(output,fps);

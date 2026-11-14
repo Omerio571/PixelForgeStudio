@@ -23,7 +23,7 @@ public partial class MainWindow
         dialog.RestoreDirectory=true;
         if(dialog is SaveFileDialog)dialog.FileOk+=(_,e)=>
         {
-            if(session?.IsManaged(dialog.FileName)==true){e.Cancel=true;MessageBox.Show(this,"Choose a save destination outside temporary session storage. Preserve the editable render to keep its complete working folder.","Permanent save destination",MessageBoxButton.OK,MessageBoxImage.Information);}
+            if(session?.IsManaged(dialog.FileName)==true){e.Cancel=true;ThemedMessage("Choose a save destination outside temporary session storage. Preserve the editable render to keep its complete working folder.","Permanent save destination",MessageBoxButton.OK,MessageBoxImage.Information);}
         };
     }
     private void RememberFile(string category,string file){directories.SelectedFile(category,file);SavePreferences();}
@@ -37,7 +37,7 @@ public partial class MainWindow
             string staged=preferencePath+"."+Guid.NewGuid().ToString("N")+".tmp";
             try
             {
-                File.WriteAllText(staged,JsonSerializer.Serialize(new Preferences(outputRoot,ZoomInput.SelectedIndex,CheckerInput.IsChecked==true,GameGroundInput.IsChecked==true,LoopInput.IsChecked==true,lastSettings,NumericControls(true).ToDictionary(c=>c.Name,c=>c.NumericMode),directories.Locations,ManageColors.IsExpanded,paletteName,OutlineColorInput.Text,selectedPalette.Select(c=>c.Hex).ToArray()),AssetSettings.JsonOptions));
+                File.WriteAllText(staged,JsonSerializer.Serialize(new Preferences(outputRoot,ZoomInput.SelectedIndex,CheckerInput.IsChecked==true,GameGroundInput.IsChecked==true,LoopInput.IsChecked==true,lastSettings,NumericControls(true).ToDictionary(c=>c.Name,c=>c.NumericMode),directories.Locations,ManageColors.IsExpanded,paletteName,OutlineColorInput.Text,selectedPalette.Select(c=>c.Hex).ToArray(),ThemeManager.Current,SettingsSections().ToDictionary(c=>c.Name,c=>c.IsExpanded)),AssetSettings.JsonOptions));
                 File.Move(staged,preferencePath,true);
             }
             finally{try{File.Delete(staged);}catch(Exception e)when(e is IOException or UnauthorizedAccessException){}}
@@ -63,7 +63,7 @@ public partial class MainWindow
             catch(Exception ex){e.Cancel=true;Error(ex);return;}
         }
         PausePlayback();SavePreferences();session?.Dispose();
-        if(session?.Retained.Count>0)MessageBox.Show(this,"Changed or unrecognized session files were retained for safety. Review: "+string.Join("\n",session.Retained),"Session files preserved",MessageBoxButton.OK,MessageBoxImage.Information);
+        if(session?.Retained.Count>0)ThemedMessage("Changed or unrecognized session files were retained for safety. Review: "+string.Join("\n",session.Retained),"Session files preserved",MessageBoxButton.OK,MessageBoxImage.Information);
     }
     private int Choose(string title,string message,string first,string second,string? third=null,Rgb? color=null)
     {

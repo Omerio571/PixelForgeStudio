@@ -102,7 +102,7 @@ internal static class WorkflowChecks
             var ground=Find<CheckBox>("GroundShadowsInput");Find<NumericSlider>("GroundStrengthInput").Value=.7;Find<NumericSlider>("GroundSoftnessInput").Value=.45;ground.IsChecked=false;
             Check(((FrameworkElement)Find<NumericSlider>("GroundStrengthInput").Parent).Visibility==Visibility.Collapsed,"disabled ground settings collapse instead of disabling");ground.IsChecked=true;
             Check(Find<NumericSlider>("GroundStrengthInput").Value==.7&&Find<NumericSlider>("GroundSoftnessInput").Value==.45,"hidden controls retain exact values");
-            var primary=Find<StackPanel>("PrimaryExports").Children.OfType<Button>().Select(b=>b.Content.ToString()).ToArray();Check(primary.SequenceEqual(new[]{"Save Current PNG","Save Spritesheet","Open in Aseprite"}),"bottom-left primary exports have exact order and labels");
+            var primary=Find<StackPanel>("PrimaryExports").Children.OfType<Button>().Select(b=>b.Content.ToString()).ToArray();Check(primary.SequenceEqual(new[]{"Save Current PNG","Save Spritesheet","Open in Aseprite"}),"preview export actions retain exact order and labels");
             Check(Find<Button>("InspectRangeButton").Content.ToString()=="Inspect Animation Range","one inspection action remains next to frame/playback controls");
             var remembered=(DialogDirectories)typeof(MainWindow).GetField("directories",BindingFlags.Instance|BindingFlags.NonPublic)!.GetValue(window)!;
             foreach(string category in new[]{"models","settings","png","sheets"})Call("RememberFile",category,Path.Combine(root,category,"test.json"));

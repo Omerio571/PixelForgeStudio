@@ -18,7 +18,9 @@ See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 ## Screenshots
 
-![PixelForge Studio](docs/images/app.jpg)
+![PixelForge Studio — Dark](docs/images/ui-dark.png)
+
+[Light theme screenshot](docs/images/ui-light.png). Switch themes in the header; settings and cached artwork stay in place.
 
 Conservative grouped outlines (left) and Unified (right):
 
@@ -40,14 +42,14 @@ The original source uses no third-party NuGet packages. External tools remain se
 
 ## Getting Started
 
-1. Obtain a Windows x64 portable ZIP from [GitHub Releases](https://github.com/Omerio571/PixelForgeStudio/releases). This source tree prepares v0.3.4; its ZIP becomes available there only after publication.
+1. Obtain a Windows x64 portable ZIP from [GitHub Releases](https://github.com/Omerio571/PixelForgeStudio/releases). This source tree prepares v0.4.0; its ZIP becomes available there only after publication.
 2. Extract the **entire ZIP** into a writable folder and run **PixelForge Studio.exe** or **Launch PixelForge.cmd**.
 3. Install Blender and Aseprite for generation. Steam installations are detected automatically; see [tool configuration](docs/USAGE.md#external-tools) for other locations.
 4. Choose a trusted `.blend` model, palette, resolution and view, then select **Generate sprite**. Renders stay temporary: use **Save Current PNG**, **Save Spritesheet**, or preserve the editable render/favorite to keep it. Opening Aseprite first preserves its working document.
 
 Requires **Windows x64**. The application and .NET desktop runtime are bundled in one EXE; keep its external `bridge/` scripts alongside it. Native runtime components extract to the standard .NET cache at startup. No SDK is needed to run it. Blender 5.3.0 and Aseprite 1.3.18.6 were verified. Neither tool is bundled. Saved-frame comparison and timing changes work without launching either tool.
 
-See the [usage guide](docs/USAGE.md) for grouping, framing, manual edits and limitations, and [release notes](docs/release/v0.3.4.md) for this version.
+See the [usage guide](docs/USAGE.md) for grouping, framing, manual edits and limitations, and [release notes](docs/release/v0.4.0.md) for this version.
 
 ## Building from Source
 

@@ -2,6 +2,15 @@
 
 Meaningful development changes, newest first. Historical entries follow saved versioned source/documentation and verification records; no historical release dates are assumed.
 
+## v0.4.0 — Modern desktop workspace
+
+- Implemented the approved mint-accent workspace with a compact header, resizable settings sidebar, seven remembered sections, prominent pixel preview and separate Generate/export areas.
+- Added complete live Light and Dark themes, remembered across restarts, and reusable WPF templates for inputs, dropdowns, segments, sliders, scrollbars, menus, tooltips, progress and application-owned confirmations.
+- Moved playback FPS, duration, timeline and transport together; secondary exports are available from the preview's ••• menu. Settings load/save is in the header.
+- Retained palette editing, strict outline-color approval, exact numeric values, render history/favorites, saved-frame comparison and all rendering/export services.
+- Kept warnings in a stable scrollable area and made preview zoom use integer device pixels at fractional Windows display scaling.
+- Normal development now uses master. No branch creation, automatic push or release publication.
+
 ## v0.3.4 — Workflow and UI cleanup
 
 - Exact zero framing padding in slider/numeric modes, including fully occupied terrain tiles and inward canvas-edge outlines.

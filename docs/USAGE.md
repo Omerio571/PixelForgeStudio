@@ -57,3 +57,12 @@ Numeric edits apply on Enter or focus loss; Escape restores the last valid value
 - Complex linked/procedural shaders use explicit fallback colors. Collection instances, uncached simulations and arbitrary external dependencies are not guaranteed; realize instances in a separate model copy.
 - Palette contrast, resolution and geometry limit binary-alpha shadow softness. Inspect warnings and pixels at game resolution; technical validation is not artistic approval.
 - Preserve palette membership and binary alpha in manual edits. Inspect **Technical details** and output logs for failed conversions; incomplete outputs do not enter successful history.
+## Modern workspace (v0.4.0)
+
+Use **Dark / Light** in the header to change themes immediately. The selected theme and the seven settings sections' expanded state are remembered. Drag the sidebar divider to give expanded settings more room; settings scroll independently of the preview.
+
+**Settings…** loads or saves render settings. **Open asset…** reopens generated artwork without Blender. **Generate Sprite** applies the current settings to new frames. Existing artwork is preserved.
+
+Playback FPS and total duration are beside the timeline and Play controls. Changing FPS reuses the cached frames. **Save timing** updates saved durations after warning about unsaved external Aseprite changes.
+
+Primary exports are below the preview. The **•••** menu contains Save Aseprite, Export PNG frames, Reload saved edits, Show working folder and Preserve editable render. **Compare** shows saved render history and favorites without generation or export.

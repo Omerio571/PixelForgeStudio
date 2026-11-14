@@ -1,128 +1,454 @@
-<Window x:Class="PixelForge.Desktop.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:PixelForge.Desktop" Title="PixelForge Studio v0.3.4" Width="1180" Height="850" MinWidth="820" MinHeight="620" Background="#141820" Foreground="#E1E6EF" FontFamily="Segoe UI" UseLayoutRounding="True">
- <Window.Resources><BooleanToVisibilityConverter x:Key="VisibleWhen"/><Style x:Key="Segment" TargetType="RadioButton"><Setter Property="Foreground" Value="#E1E6EF"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="RadioButton"><Border x:Name="Tile" Background="#20242D" BorderBrush="#505B70" BorderThickness="1" Padding="9,7"><ContentPresenter/></Border><ControlTemplate.Triggers><Trigger Property="IsChecked" Value="True"><Setter TargetName="Tile" Property="Background" Value="#36685A"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter></Style></Window.Resources>
- <Grid Margin="20">
-  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-  <DockPanel Margin="0,0,0,14"><TextBlock Text="PixelForge Studio" FontSize="26" FontWeight="SemiBold"/><TextBlock Text="3D form. Pixel craft." HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="#98A6BA"/></DockPanel>
-  <Grid Grid.Row="1"><Grid.ColumnDefinitions><ColumnDefinition Width="330"/><ColumnDefinition Width="18"/><ColumnDefinition/></Grid.ColumnDefinitions>
-   <Border Background="{StaticResource Panel}" CornerRadius="8" Padding="16"><Grid><Grid.RowDefinitions><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions><ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel>
-    <StackPanel x:Name="SettingsPanel">
-     <Expander Header="Model and Output" IsExpanded="True"><StackPanel Margin="0,6,5,12">
-     <TextBlock Text="3D MODEL" FontWeight="Bold"/><TextBox x:Name="ModelPath" ToolTip="Source .blend file; never overwritten"/><Button Content="Browse model…" Click="BrowseModel"/>
-     <TextBlock x:Name="ModelInfo" Text="Import a Blender model to begin." TextWrapping="Wrap" Foreground="#98A6BA"/>
-     <TextBlock Text="Color palette" Style="{StaticResource Section}"/>
-     <TextBlock x:Name="PaletteInfo" TextWrapping="Wrap" Foreground="#98A6BA"/><WrapPanel x:Name="Swatches" Margin="0,5"/>
-     <Expander x:Name="ManageColors" Header="Manage Colors" IsExpanded="False"><StackPanel>
-      <WrapPanel><Button Content="Import…" Click="ImportPalette"/><Button Content="Project default" Click="ResetPalette"/><Button Content="Clear" Click="ClearPalette"/></WrapPanel>
-      <WrapPanel><Border x:Name="SelectedColorPreview" Width="24" Height="24" Margin="2,6"/><TextBlock x:Name="SelectedColorHex" Text="Select a swatch" Margin="6"/><Button Content="Copy" Click="CopyColor"/></WrapPanel>
-      <WrapPanel><Button Content="Remove" Click="RemoveColor"/><Button Content="←" Click="MoveColorLeft"/><Button Content="→" Click="MoveColorRight"/></WrapPanel>
-      <TextBlock Text="Source indices (zero-based; blank selects all)" FontSize="12"/><TextBox x:Name="Indices" LostFocus="ApplyIndices" ToolTip="Example: 0,2,5,8"/>
-      <TextBlock Text="Paste HEX colors, RGB rows or JSON RGB lists" FontSize="12"/><TextBox x:Name="DirectColors" AcceptsReturn="True" Height="70" VerticalScrollBarVisibility="Auto"/><Button Content="Add colors" Click="AddColors"/>
-     </StackPanel></Expander>
-     <TextBlock Text="Output dimensions" Style="{StaticResource Section}"/>
-     <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="28"/><ColumnDefinition/></Grid.ColumnDefinitions><TextBox x:Name="WidthInput" Text="128" TextChanged="DimensionsChanged" ToolTip="Width in pixels (1–2048)"/><TextBlock Grid.Column="1" Text="×" HorizontalAlignment="Center" VerticalAlignment="Center"/><TextBox Grid.Column="2" x:Name="HeightInput" Text="128" TextChanged="DimensionsChanged" ToolTip="Height in pixels (1–2048)"/></Grid>
-     <WrapPanel x:Name="ResolutionPresets"><Button Content="8" Tag="8" Click="Preset" Padding="8,5"/><Button Content="16" Tag="16" Click="Preset" Padding="8,5"/><Button Content="32" Tag="32" Click="Preset" Padding="8,5"/><Button Content="64" Tag="64" Click="Preset" Padding="8,5"/><Button Content="128" Tag="128" Click="Preset" Padding="8,5"/><Button Content="256" Tag="256" Click="Preset" Padding="8,5"/></WrapPanel>
-     </StackPanel></Expander>
-     <Expander Header="View and Scale" IsExpanded="True"><StackPanel Margin="0,6,5,12">
-     <TextBlock Text="Camera and framing" Style="{StaticResource Section}"/>
-     <ComboBox x:Name="ViewInput"/><ComboBox x:Name="ProjectionInput"/>
-     <TextBlock Text="Fit bounds source"/><ComboBox x:Name="FitBoundsInput" DisplayMemberPath="Value" SelectedValuePath="Key" ToolTip="Object Only keeps machine scale unchanged by shadows. Shadow-inclusive fit is an explicit choice."/>
-     <TextBlock Text="Padding (0–0.40)" FontSize="12"/><local:NumericSlider x:Name="PaddingInput" Minimum="0" Maximum="0.4" Value="0.08" DecimalPlaces="2" ToolTip="Zero adds no framing margin. Fit to Canvas preserves proportions and the ground anchor. World scale fixes pixel density; shared animation or shadow bounds can leave space around an individual object."/>
-     <CheckBox x:Name="WorldScaleInput" Content="Consistent world scale" Checked="ScaleModeChanged" Unchecked="ScaleModeChanged"/>
-     <TextBlock x:Name="ScaleHelp" Text="Fit to Canvas preserves proportions; pixel density is inactive." TextWrapping="Wrap" Foreground="#98A6BA"/>
-     <StackPanel Visibility="{Binding IsChecked, Converter={StaticResource VisibleWhen}, ElementName=WorldScaleInput}"><TextBlock Text="Pixels per Blender unit" FontSize="12"/><TextBox x:Name="PixelsPerUnitInput" TextChanged="PreciseTextChanged" Text="16"/></StackPanel>
-     <TextBlock Text="Sampling" FontSize="12"/><ComboBox x:Name="SamplingInput"><ComboBoxItem Content="3× coverage — default" IsSelected="True"/><ComboBoxItem Content="Direct target resolution"/></ComboBox>
-     </StackPanel></Expander>
-     <Expander Header="Appearance"><StackPanel Margin="0,6,5,12">
-      <TextBlock Text="Lighting stays fixed on screen as the model turns." TextWrapping="Wrap" Foreground="#98A6BA"/>
-      <TextBlock Text="{Binding Value, ElementName=LightAzimuthInput, StringFormat=Light direction: {0:0.##}°}"/><local:NumericSlider x:Name="LightAzimuthInput" Unit="°" Minimum="-360" Maximum="360" Value="135" TickFrequency="15" ToolTip="Screen angle: 0° right, 90° top, 135° upper left"/>
-      <TextBlock Text="{Binding Value, ElementName=LightElevationInput, StringFormat=Light elevation: {0:0.##}°}"/><local:NumericSlider x:Name="LightElevationInput" Unit="°" Minimum="0" Maximum="90" Value="45" ToolTip="0° skims the screen plane; 90° lights from the viewer"/>
-      <TextBlock Text="{Binding Value, ElementName=LightIntensityInput, StringFormat=Light intensity: {0:0.##}}"/><local:NumericSlider x:Name="LightIntensityInput" Minimum="0" Maximum="10" Value="2.2"/>
-      <TextBlock Text="{Binding Value, ElementName=AmbientInput, StringFormat=Ambient illumination: {0:0.##}}"/><local:NumericSlider x:Name="AmbientInput" Minimum="0" Maximum="5" Value="0.65"/>
-      <TextBlock Text="{Binding Value, ElementName=ShadowInput, StringFormat=Shadow intensity: {0:P0}}"/><local:NumericSlider x:Name="ShadowInput" DecimalPlaces="0" DisplayScale="100" Unit="%" Minimum="0" Maximum="1" Value="1" ToolTip="Lower values add material-colored fill to lift shaded surfaces"/>
-      <CheckBox x:Name="CastShadowsInput" Content="Self-shadows between model surfaces" IsChecked="True"/>
-      <CheckBox x:Name="GroundShadowsInput" Content="Cast ground shadows"/>
-      <StackPanel Visibility="{Binding IsChecked, Converter={StaticResource VisibleWhen}, ElementName=GroundShadowsInput}">
-       <TextBlock Text="{Binding Value, ElementName=GroundStrengthInput, StringFormat=Ground-shadow strength: {0:P0}}"/><local:NumericSlider x:Name="GroundStrengthInput" DecimalPlaces="0" DisplayScale="100" Unit="%" Minimum="0" Maximum="1" Value="0.65"/>
-       <TextBlock Text="{Binding Value, ElementName=GroundSoftnessInput, StringFormat=Ground-shadow softness: {0:0.##} rad}"/><local:NumericSlider x:Name="GroundSoftnessInput" Unit="rad" Minimum="0" Maximum="0.5" Value="0.05"/>
-       <TextBlock Text="Ground shadows use a separate binary-alpha palette layer. Object shading is unchanged." TextWrapping="Wrap" Foreground="#98A6BA"/>
-      </StackPanel>
-      <CheckBox x:Name="OutlineInput" Content="Enable pixel outlines"/>
-      <StackPanel Visibility="{Binding IsChecked, Converter={StaticResource VisibleWhen}, ElementName=OutlineInput}">
-      <CheckBox x:Name="RespectGroupsInput" Content="Respect Blender Outline Groups" ToolTip="PF_Outline_ collections share contours; objects and animation remain separate. Includes nested collections."/>
-      <StackPanel Visibility="{Binding IsChecked, Converter={StaticResource VisibleWhen}, ElementName=RespectGroupsInput}"><TextBlock Text="Grouped outline mode"/><ComboBox x:Name="GroupedModeInput" ToolTip="Unified outlines the group exterior; enclosed gaps stay transparent without heavy internal contours. Conservative preserves v0.3.2 contours."/></StackPanel>
-
-       <ComboBox x:Name="OutlineTypeInput"/>
-       <ComboBox x:Name="OutlineThicknessInput" SelectedIndex="0"><ComboBoxItem Content="1 pixel"/><ComboBoxItem Content="2 pixels"/></ComboBox>
-       <TextBlock Text="Outline color"/><DockPanel><Border x:Name="OutlineColorPreview" Width="25" Height="25" Margin="0,4,6,4"/><TextBox x:Name="OutlineColorInput" Text="#171923" TextChanged="OutlineColorChanged" ToolTip="Type #RRGGBB or choose a palette swatch"/></DockPanel><Button Content="Color picker…" Click="PickOutlineColor"/><WrapPanel x:Name="OutlineSwatches"/><TextBlock x:Name="OutlineColorNotice" TextWrapping="Wrap" Foreground="#E9BE7A"/><Button x:Name="ApproveOutlineButton" Content="Add outline color to palette" Click="ApproveOutlineColor" Visibility="Collapsed"/>
-       <TextBlock Text="Inward contours preserve the silhouette. Two pixels can hide small details." TextWrapping="Wrap" Foreground="#98A6BA"/>
-      </StackPanel>
-      <CheckBox x:Name="EdgeHighlightsInput" Content="Edge Highlights"/>
-      <StackPanel Visibility="{Binding IsChecked, Converter={StaticResource VisibleWhen}, ElementName=EdgeHighlightsInput}">
-       <TextBlock Text="{Binding Value, ElementName=EdgeStrengthInput, StringFormat=Highlight strength: {0:P0}}"/>
-       <local:NumericSlider x:Name="EdgeStrengthInput" DecimalPlaces="0" DisplayScale="100" Unit="%" Minimum="0" Maximum="1" Value="0.3"/>
-      </StackPanel>
-      <TextBlock Text="Selective outlines and highlights use 3D light-facing edges. Optional; Generate applies them to new artwork." TextWrapping="Wrap" Foreground="#98A6BA"/>
-     </StackPanel></Expander>
-     <CheckBox x:Name="AnimationInput" Content="Convert Blender animation" Checked="AnimationModeChanged" Unchecked="AnimationModeChanged"/>
-     <StackPanel x:Name="SingleFramePanel"><TextBlock Text="Single Blender frame (blank uses saved frame)" TextWrapping="Wrap"/><TextBox x:Name="SingleFrameInput"/></StackPanel>
-     <StackPanel x:Name="AnimationSettingsPanel" Visibility="Collapsed">
-      <TextBlock Text="Animation range" Style="{StaticResource Section}"/>
-      <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="20"/><ColumnDefinition/></Grid.ColumnDefinitions><TextBox x:Name="StartFrameInput" Text="1" ToolTip="Start frame (inclusive)"/><TextBlock Grid.Column="1" Text="–" HorizontalAlignment="Center"/><TextBox Grid.Column="2" x:Name="EndFrameInput" Text="12" ToolTip="End frame (inclusive)"/></Grid>
-      <TextBlock Text="Frame step"/><TextBox x:Name="FrameStepInput" Text="1"/>
-      <TextBlock Text="Initial output playback FPS"/><TextBox x:Name="FpsInput" Text="12"/>
-      <TextBlock Text="Animation tag"/><TextBox x:Name="TagInput" Text="Animation"/>
-      <TextBlock Text="One shared framing covers the entire motion. Frame step samples the source; FPS controls playback." TextWrapping="Wrap" Foreground="#98A6BA"/>
-     </StackPanel>
-     <WrapPanel Margin="0,12,0,0"><Button Content="Save settings…" Click="SaveSettings"/><Button Content="Load settings…" Click="LoadSettings"/></WrapPanel>
-    </StackPanel>
-   </StackPanel></ScrollViewer><StackPanel Grid.Row="1">
-    <Button Content="Open generated asset…" Click="OpenGeneratedAsset" IsEnabled="{Binding IsEnabled, ElementName=GenerateButton}" ToolTip="Reopen rendered frames and saved timing; Blender is not started"/>
-    <Button x:Name="GenerateButton" Content="Generate sprite" Background="#8CD8BD" FontWeight="Bold" Click="Generate" Margin="0,14,0,4"/>
-    <Button x:Name="CancelButton" Content="Cancel generation" Click="Cancel" IsEnabled="False" Visibility="{Binding IsEnabled, RelativeSource={RelativeSource Self}, Converter={StaticResource VisibleWhen}}"/>
-    <StackPanel x:Name="PrimaryExports" IsEnabled="{Binding IsEnabled, ElementName=ExportPanel}" Visibility="{Binding Visibility, ElementName=ExportPanel}"><Button Content="Save Current PNG" Click="SavePng"/><Button Content="Save Spritesheet" Click="SaveSheet"/><Button Content="Open in Aseprite" Click="OpenAseprite"/></StackPanel>
-   </StackPanel></Grid></Border>
-   <Grid Grid.Column="2"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-    <DockPanel Margin="0,0,0,8"><TextBlock Text="FINAL PIXELS" FontWeight="Bold"/><StackPanel Orientation="Horizontal" HorizontalAlignment="Right"><Button x:Name="CompareButton" Content="Compare" Click="ToggleCompare" ToolTip="Compare saved renders without rendering"/><RadioButton x:Name="CheckerInput" GroupName="PreviewMode" Content="Checkerboard" IsChecked="True" Checked="CheckerChanged" Style="{StaticResource Segment}"/><RadioButton x:Name="GameGroundInput" GroupName="PreviewMode" Content="Ground Preview" Checked="CheckerChanged" Style="{StaticResource Segment}"/><ComboBox x:Name="ZoomInput" SelectionChanged="ZoomChanged" Width="80" Margin="12,0,0,0"><ComboBoxItem Content="Fit" IsSelected="True"/><ComboBoxItem Content="1×"/><ComboBoxItem Content="2×"/><ComboBoxItem Content="4×"/><ComboBoxItem Content="8×"/><ComboBoxItem Content="16×"/></ComboBox></StackPanel></DockPanel>
-    <Border x:Name="PreviewBorder" Grid.Row="1" BorderBrush="#39404F" BorderThickness="1" CornerRadius="6" ClipToBounds="True">
-     <Grid><ScrollViewer x:Name="PreviewScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" SizeChanged="PreviewSizeChanged"><Image x:Name="PreviewImage" Stretch="Fill" HorizontalAlignment="Center" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="NearestNeighbor"/></ScrollViewer><TextBlock x:Name="EmptyPreview" Text="Your model, translated into pixels.&#10;Generate a sprite to see the result here." TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#8996A9"/></Grid>
+<Window x:Class="PixelForge.Desktop.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:PixelForge.Desktop" Title="PixelForge Studio v0.4.0" Width="1440" Height="1000" MinWidth="1000" MinHeight="740" Background="{DynamicResource Window}" Foreground="{DynamicResource Text}" FontFamily="Segoe UI" UseLayoutRounding="True">
+  <Window.Resources>
+    <BooleanToVisibilityConverter x:Key="VisibleWhen" />
+  </Window.Resources>
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="68" />
+      <RowDefinition />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+    <Border Background="{DynamicResource Panel}" BorderBrush="{DynamicResource Border}" BorderThickness="0,0,0,1" Padding="20,10">
+      <DockPanel LastChildFill="True">
+        <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
+          <Button Content="Open asset…" Click="OpenGeneratedAsset" IsEnabled="{Binding IsEnabled, ElementName=GenerateButton}" />
+          <Button Content="Settings…" Click="SettingsMenu" IsEnabled="{Binding IsEnabled, ElementName=GenerateButton}" />
+          <RadioButton x:Name="DarkTheme" Content="Dark" GroupName="Theme" Style="{StaticResource Segment}" IsChecked="True" Checked="ThemeChanged" />
+          <RadioButton x:Name="LightTheme" Content="Light" GroupName="Theme" Style="{StaticResource Segment}" Checked="ThemeChanged" />
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+          <Border Width="34" Height="34" CornerRadius="9" Background="{DynamicResource Accent}" Margin="0,0,14,0">
+            <TextBlock Text="PF" Foreground="{DynamicResource AccentText}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+          <TextBlock Text="PixelForge Studio" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
+          <TextBlock Text="v0.4.0" Margin="10,0" FontSize="10" Foreground="{DynamicResource Muted}" VerticalAlignment="Center" />
+        </StackPanel>
+      </DockPanel>
     </Border>
-    <Border x:Name="ComparisonPanel" Grid.Row="1" Grid.RowSpan="4" Visibility="Collapsed" Background="{StaticResource Panel}" CornerRadius="6" Padding="10">
-     <Grid>
-      <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-      <Grid>
-       <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="12"/><ColumnDefinition/></Grid.ColumnDefinitions>
-       <StackPanel><DockPanel><TextBlock Text="Render A"/><Button x:Name="FavoriteA" Content="☆" DockPanel.Dock="Right" HorizontalAlignment="Right" Padding="8,2" Tag="A" Click="ToggleFavorite" ToolTip="Permanently preserve this editable render in the Library. Removing a favorite does not delete artwork."/></DockPanel><ComboBox x:Name="RenderAInput" DisplayMemberPath="Label" SelectionChanged="ComparisonSelectionChanged"/><TextBlock x:Name="RenderAInfo" TextWrapping="Wrap" FontSize="11" Foreground="#A8B7CA"/><WrapPanel><Button Content="◀" Tag="A,-1" Click="StepComparison" Padding="8,3"/><TextBox x:Name="CompareFrameA" Text="1" Width="48" LostKeyboardFocus="CommitComparisonFrame" PreviewKeyDown="ComparisonFrameKey" ToolTip="Frame A (1-based)"/><Button Content="▶" Tag="A,1" Click="StepComparison" Padding="8,3"/></WrapPanel></StackPanel>
-       <StackPanel Grid.Column="2"><DockPanel><TextBlock Text="Render B"/><Button x:Name="FavoriteB" Content="☆" DockPanel.Dock="Right" HorizontalAlignment="Right" Padding="8,2" Tag="B" Click="ToggleFavorite" ToolTip="Permanently preserve this editable render in the Library. Removing a favorite does not delete artwork."/></DockPanel><ComboBox x:Name="RenderBInput" DisplayMemberPath="Label" SelectionChanged="ComparisonSelectionChanged"/><TextBlock x:Name="RenderBInfo" TextWrapping="Wrap" FontSize="11" Foreground="#A8B7CA"/><WrapPanel><Button Content="◀" Tag="B,-1" Click="StepComparison" Padding="8,3"/><TextBox x:Name="CompareFrameB" Text="1" Width="48" LostKeyboardFocus="CommitComparisonFrame" PreviewKeyDown="ComparisonFrameKey" ToolTip="Frame B (1-based)"/><Button Content="▶" Tag="B,1" Click="StepComparison" Padding="8,3"/></WrapPanel></StackPanel>
-      </Grid>
-      <WrapPanel Grid.Row="1"><ComboBox x:Name="CompareModeInput" SelectedIndex="0" SelectionChanged="ComparisonModeChanged" Width="150"><ComboBoxItem Content="Comparison slider"/><ComboBoxItem Content="Side by side"/></ComboBox><Button Content="Match source → B" Click="MatchSourceFrame" Padding="8,4" ToolTip="Match the same Blender frame of the same source model"/><Button Content="Match time → B" Click="MatchTimeFrame" Padding="8,4" ToolTip="Match elapsed playback time; unequal clip lengths clamp to the final frame"/><Button Content="Add saved render…" Click="AddSavedRender" Padding="8,4"/></WrapPanel>
-      <Grid x:Name="DividerPanel" Grid.Row="2"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/></Grid.ColumnDefinitions><TextBlock Text="Reveal A" Margin="0,5,8,5"/><local:NumericSlider x:Name="DividerInput" Grid.Column="1" Minimum="0" Maximum="100" Value="50" Unit="%" ValueChanged="DividerChanged"/></Grid>
-      <Border x:Name="ComparisonBackground" Grid.Row="3" BorderBrush="#39404F" BorderThickness="1" ClipToBounds="True">
-       <ScrollViewer x:Name="ComparisonScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" SizeChanged="ComparisonSizeChanged" PreviewMouseDown="ComparisonPanStart" PreviewMouseMove="ComparisonPanMove" PreviewMouseUp="ComparisonPanEnd">
-        <Canvas x:Name="ComparisonCanvas" HorizontalAlignment="Center" VerticalAlignment="Center" Background="Transparent">
-         <Canvas x:Name="CompareHostB"><Image x:Name="CompareImageB" Stretch="Fill" RenderOptions.BitmapScalingMode="NearestNeighbor"/></Canvas>
-         <Canvas x:Name="CompareHostA"><Image x:Name="CompareImageA" Stretch="Fill" RenderOptions.BitmapScalingMode="NearestNeighbor"/></Canvas>
-         <Grid x:Name="CompareDivider" Width="20" IsHitTestVisible="False"><Border Width="1" Background="#8CD8BD"/><Border Width="16" Height="28" VerticalAlignment="Center" Background="#8CD8BD" CornerRadius="4"><TextBlock Text="↔" Foreground="#17202B" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0"/></Border></Grid>
-         <Thumb xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" x:Name="DividerThumb" Width="20" Cursor="SizeWE" DragDelta="DragDivider"><Thumb.Template><ControlTemplate TargetType="Thumb"><Border Background="Transparent"/></ControlTemplate></Thumb.Template></Thumb>
-        </Canvas>
-       </ScrollViewer>
+    <Grid Grid.Row="1">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="336" MinWidth="310" MaxWidth="460" />
+        <ColumnDefinition Width="5" />
+        <ColumnDefinition />
+      </Grid.ColumnDefinitions>
+      <Border Background="{DynamicResource Panel}" BorderBrush="{DynamicResource Border}" BorderThickness="0,0,1,0">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+          <TextBlock Text="RENDER SETTINGS" Foreground="{DynamicResource Muted}" FontSize="10" Margin="18,14,18,6" />
+          <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="18,0,10,0">
+            <StackPanel x:Name="SettingsPanel">
+              <Expander x:Name="ModelSection" Header="Model" IsExpanded="true">
+                <StackPanel Margin="0,0,4,0">
+                  <DockPanel>
+                    <Button DockPanel.Dock="Right" Content="…" Click="BrowseModel" ToolTip="Browse Blender model" Width="34" Margin="5,3,0,3" />
+                    <TextBox x:Name="ModelPath" ToolTip="Source .blend file; never overwritten" />
+                  </DockPanel>
+                  <TextBlock FontSize="10" x:Name="ModelInfo" Text="Import a Blender model to begin." TextWrapping="Wrap" Foreground="{DynamicResource Muted}" />
+                </StackPanel>
+              </Expander>
+              <Expander x:Name="PaletteSection" Header="Palette" IsExpanded="true">
+                <StackPanel Margin="0,0,4,0">
+                  <TextBlock FontSize="10" x:Name="PaletteInfo" TextWrapping="Wrap" Foreground="{DynamicResource Muted}" />
+                  <ScrollViewer MaxHeight="120" VerticalScrollBarVisibility="Auto">
+                    <WrapPanel x:Name="Swatches" MaxWidth="264" HorizontalAlignment="Left" Margin="0,4" />
+                  </ScrollViewer>
+                  <Expander x:Name="ManageColors" Header="Manage Colors" IsExpanded="False">
+                    <StackPanel>
+                      <WrapPanel>
+                        <Button Content="Import…" Click="ImportPalette" />
+                        <Button Content="Project default" Click="ResetPalette" />
+                        <Button Content="Clear" Click="ClearPalette" />
+                      </WrapPanel>
+                      <WrapPanel>
+                        <Border x:Name="SelectedColorPreview" Width="24" Height="24" Margin="0,5,5,5" />
+                        <TextBlock x:Name="SelectedColorHex" Text="Select a swatch" Margin="0,8,6,0" />
+                        <Button Content="Copy" Click="CopyColor" />
+                        <Button Content="Remove" Click="RemoveColor" />
+                        <Button Content="←" Click="MoveColorLeft" ToolTip="Move selected color left" />
+                        <Button Content="→" Click="MoveColorRight" ToolTip="Move selected color right" />
+                      </WrapPanel>
+                      <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="Add" Click="AddColors" Margin="5,3,0,3" />
+                        <TextBox x:Name="DirectColors" AcceptsReturn="True" Height="34" VerticalScrollBarVisibility="Auto" ToolTip="Paste HEX colors, RGB rows or JSON RGB lists; multiple rows are supported" />
+                      </DockPanel>
+                      <Expander Header="Source indices / input help">
+                        <StackPanel>
+                          <TextBlock Text="Zero-based indices; blank selects all. Paste HEX, RGB rows or JSON in the field above." TextWrapping="Wrap" FontSize="10" />
+                          <TextBox x:Name="Indices" LostFocus="ApplyIndices" ToolTip="Example: 0,2,5,8" />
+                        </StackPanel>
+                      </Expander>
+                    </StackPanel>
+                  </Expander>
+                </StackPanel>
+              </Expander>
+              <Expander x:Name="DimensionsSection" Header="Output Dimensions" IsExpanded="true">
+                <StackPanel Margin="0,0,4,0">
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition />
+                      <ColumnDefinition Width="28" />
+                      <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="WidthInput" Text="128" TextChanged="DimensionsChanged" ToolTip="Width in pixels (1–2048)" />
+                    <TextBlock Grid.Column="1" Text="×" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <TextBox Grid.Column="2" x:Name="HeightInput" Text="128" TextChanged="DimensionsChanged" ToolTip="Height in pixels (1–2048)" />
+                  </Grid>
+                  <WrapPanel x:Name="ResolutionPresets">
+                    <Button Content="8" Tag="8" Click="Preset" Padding="8,5" />
+                    <Button Content="16" Tag="16" Click="Preset" Padding="8,5" />
+                    <Button Content="32" Tag="32" Click="Preset" Padding="8,5" />
+                    <Button Content="64" Tag="64" Click="Preset" Padding="8,5" />
+                    <Button Content="128" Tag="128" Click="Preset" Padding="8,5" />
+                    <Button Content="256" Tag="256" Click="Preset" Padding="8,5" />
+                  </WrapPanel>
+                </StackPanel>
+              </Expander>
+              <Expander x:Name="CameraSection" Header="Camera and Scale" IsExpanded="true">
+                <StackPanel Margin="0,0,4,0">
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition />
+                      <ColumnDefinition Width="8" />
+                      <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                      <TextBlock Text="Direction" />
+                      <ComboBox x:Name="ViewInput" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                      <TextBlock Text="Projection" />
+                      <ComboBox x:Name="ProjectionInput" />
+                    </StackPanel>
+                  </Grid>
+                  <TextBlock Text="Fit bounds source" />
+                  <ComboBox x:Name="FitBoundsInput" DisplayMemberPath="Value" SelectedValuePath="Key" ToolTip="Object Only keeps machine scale unchanged by shadows. Shadow-inclusive fit is an explicit choice." />
+                  <TextBlock Text="Padding (0–0.40)" FontSize="12" />
+                  <local:NumericSlider x:Name="PaddingInput" Minimum="0" Maximum="0.4" Value="0.08" DecimalPlaces="2" ToolTip="Zero adds no framing margin. Fit to Canvas preserves proportions and the ground anchor. World scale fixes pixel density; shared animation or shadow bounds can leave space around an individual object." />
+                  <Expander Header="Pixel density / sampling">
+                    <StackPanel>
+                      <CheckBox x:Name="WorldScaleInput" Content="Consistent world scale" Checked="ScaleModeChanged" Unchecked="ScaleModeChanged" />
+                      <TextBlock x:Name="ScaleHelp" Text="Fit to Canvas preserves proportions; pixel density is inactive." TextWrapping="Wrap" Foreground="{DynamicResource Muted}" />
+                      <StackPanel Visibility="{Binding IsChecked, Converter={StaticResource VisibleWhen}, ElementName=WorldScaleInput}">
+                        <TextBlock Text="Pixels per Blender unit" FontSize="12" />
+                        <TextBox x:Name="PixelsPerUnitInput" TextChanged="PreciseTextChanged" Text="16" />
+                      </StackPanel>
+                      <TextBlock Text="Sampling" FontSize="12" />
+                      <ComboBox x:Name="SamplingInput">
+                        <ComboBoxItem Content="3× coverage — default" IsSelected="True" />
+                        <ComboBoxItem Content="Direct target resolution" />
+                      </ComboBox>
+                    </StackPanel>
+                  </Expander>
+                </StackPanel>
+              </Expander>
+              <Expander x:Name="LightingSection" Header="Lighting and Shadows" IsExpanded="false">
+                <StackPanel Margin="0,0,4,0">
+                  <UniformGrid Columns="3">
+                    <StackPanel Margin="0,0,8,5">
+                      <TextBlock Text="{Binding Value, ElementName=LightAzimuthInput, StringFormat=Direction {0:0.##}°}" />
+                      <local:NumericSlider x:Name="LightAzimuthInput" Unit="°" Minimum="-360" Maximum="360" Value="135" TickFrequency="15" ToolTip="Screen angle: 0° right, 90° top, 135° upper left" />
+                    </StackPanel>
+                    <StackPanel Margin="0,0,8,5">
+                      <TextBlock Text="{Binding Value, ElementName=LightElevationInput, StringFormat=Elevation {0:0.##}°}" />
+                      <local:NumericSlider x:Name="LightElevationInput" Unit="°" Minimum="0" Maximum="90" Value="45" ToolTip="0° skims the screen plane; 90° lights from the viewer" />
+                    </StackPanel>
+                    <StackPanel Margin="0,0,8,5">
+                      <TextBlock Text="{Binding Value, ElementName=LightIntensityInput, StringFormat=Key {0:0.##}}" />
+                      <local:NumericSlider x:Name="LightIntensityInput" Minimum="0" Maximum="10" Value="2.2" />
+                    </StackPanel>
+                    <StackPanel Margin="0,0,8,5">
+                      <TextBlock Text="{Binding Value, ElementName=AmbientInput, StringFormat=Ambient {0:0.##}}" />
+                      <local:NumericSlider x:Name="AmbientInput" Minimum="0" Maximum="5" Value="0.65" />
+                    </StackPanel>
+                    <StackPanel Margin="0,0,8,5">
+                      <TextBlock Text="{Binding Value, ElementName=ShadowInput, StringFormat=Surface shadows {0:P0}}" />
+                      <local:NumericSlider x:Name="ShadowInput" DecimalPlaces="0" DisplayScale="100" Unit="%" Minimum="0" Maximum="1" Value="1" ToolTip="Lower values add material-colored fill to lift shaded surfaces" />
+                    </StackPanel>
+                  </UniformGrid>
+                  <WrapPanel>
+                    <CheckBox Margin="0,5,14,5" x:Name="CastShadowsInput" Content="Self-shadows" ToolTip="Self-shadows between model surfaces" IsChecked="True" />
+                    <CheckBox x:Name="GroundShadowsInput" Content="Ground shadows" />
+                  </WrapPanel>
+                  <StackPanel Visibility="{Binding IsChecked, Converter={StaticResource VisibleWhen}, ElementName=GroundShadowsInput}">
+                    <TextBlock Text="{Binding Value, ElementName=GroundStrengthInput, StringFormat=Ground-shadow strength: {0:P0}}" />
+                    <local:NumericSlider x:Name="GroundStrengthInput" DecimalPlaces="0" DisplayScale="100" Unit="%" Minimum="0" Maximum="1" Value="0.65" />
+                    <TextBlock Text="{Binding Value, ElementName=GroundSoftnessInput, StringFormat=Ground-shadow softness: {0:0.##} rad}" />
+                    <local:NumericSlider x:Name="GroundSoftnessInput" Unit="rad" Minimum="0" Maximum="0.5" Value="0.05" />
+                    <TextBlock Text="Ground shadows use a separate binary-alpha palette layer. Object shading is unchanged." TextWrapping="Wrap" Foreground="{DynamicResource Muted}" />
+                  </StackPanel>
+                </StackPanel>
+              </Expander>
+              <Expander x:Name="OutlinesSection" Header="Outlines and Highlights" IsExpanded="false">
+                <StackPanel Margin="0,0,4,0">
+                  <CheckBox x:Name="OutlineInput" Content="Enable pixel outlines" />
+                  <StackPanel Visibility="{Binding IsChecked, Converter={StaticResource VisibleWhen}, ElementName=OutlineInput}">
+                    <CheckBox x:Name="RespectGroupsInput" Content="Blender outline groups" ToolTip="PF_Outline_ collections share contours; objects and animation remain separate. Includes nested collections." />
+                    <StackPanel Visibility="{Binding IsChecked, Converter={StaticResource VisibleWhen}, ElementName=RespectGroupsInput}">
+                      <TextBlock Text="Grouped outline mode" />
+                      <ComboBox x:Name="GroupedModeInput" ToolTip="Unified outlines the group exterior; enclosed gaps stay transparent without heavy internal contours. Conservative preserves v0.3.2 contours." />
+                    </StackPanel>
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition />
+                        <ColumnDefinition Width="8" />
+                        <ColumnDefinition />
+                      </Grid.ColumnDefinitions>
+                      <ComboBox x:Name="OutlineTypeInput" />
+                      <ComboBox Grid.Column="2" x:Name="OutlineThicknessInput" SelectedIndex="0">
+                        <ComboBoxItem Content="1 pixel" />
+                        <ComboBoxItem Content="2 pixels" />
+                      </ComboBox>
+                    </Grid>
+                    <TextBlock Text="Outline color" />
+                    <DockPanel>
+                      <Border x:Name="OutlineColorPreview" Width="25" Height="25" Margin="0,4,6,4" />
+                      <TextBox x:Name="OutlineColorInput" Text="#171923" TextChanged="OutlineColorChanged" ToolTip="Type #RRGGBB or choose a palette swatch" />
+                    </DockPanel>
+                    <Button Content="Color picker…" Click="PickOutlineColor" />
+                    <Expander Header="Palette colors">
+                      <ScrollViewer MaxHeight="120" VerticalScrollBarVisibility="Auto">
+                        <WrapPanel x:Name="OutlineSwatches" />
+                      </ScrollViewer>
+                    </Expander>
+                    <TextBlock x:Name="OutlineColorNotice" TextWrapping="Wrap" Foreground="{DynamicResource Error}" />
+                    <Button x:Name="ApproveOutlineButton" Content="Add outline color to palette" Click="ApproveOutlineColor" Visibility="Collapsed" />
+                  </StackPanel>
+                  <CheckBox x:Name="EdgeHighlightsInput" Content="Edge Highlights" />
+                  <StackPanel Visibility="{Binding IsChecked, Converter={StaticResource VisibleWhen}, ElementName=EdgeHighlightsInput}">
+                    <TextBlock Text="{Binding Value, ElementName=EdgeStrengthInput, StringFormat=Highlight strength: {0:P0}}" />
+                    <local:NumericSlider x:Name="EdgeStrengthInput" DecimalPlaces="0" DisplayScale="100" Unit="%" Minimum="0" Maximum="1" Value="0.3" />
+                  </StackPanel>
+                </StackPanel>
+              </Expander>
+              <Expander x:Name="AnimationSection" Header="Animation" IsExpanded="false">
+                <StackPanel Margin="0,0,4,0">
+                  <CheckBox x:Name="AnimationInput" Content="Convert Blender animation" Checked="AnimationModeChanged" Unchecked="AnimationModeChanged" />
+                  <StackPanel x:Name="SingleFramePanel">
+                    <TextBlock Text="Single Blender frame (blank uses saved frame)" TextWrapping="Wrap" />
+                    <TextBox x:Name="SingleFrameInput" />
+                  </StackPanel>
+                  <StackPanel x:Name="AnimationSettingsPanel" Visibility="Collapsed">
+                    <TextBlock Text="Animation range" Style="{StaticResource Section}" />
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition />
+                        <ColumnDefinition Width="20" />
+                        <ColumnDefinition />
+                      </Grid.ColumnDefinitions>
+                      <TextBox x:Name="StartFrameInput" Text="1" ToolTip="Start frame (inclusive)" />
+                      <TextBlock Grid.Column="1" Text="–" HorizontalAlignment="Center" />
+                      <TextBox Grid.Column="2" x:Name="EndFrameInput" Text="12" ToolTip="End frame (inclusive)" />
+                    </Grid>
+                    <TextBlock Text="Frame step" />
+                    <TextBox x:Name="FrameStepInput" Text="1" />
+                    <TextBlock Text="Initial output playback FPS" />
+                    <TextBox x:Name="FpsInput" Text="12" />
+                    <TextBlock Text="Animation tag" />
+                    <TextBox x:Name="TagInput" Text="Animation" />
+                    <TextBlock Text="One shared framing covers the entire motion. Frame step samples the source; FPS controls playback." TextWrapping="Wrap" Foreground="{DynamicResource Muted}" />
+                  </StackPanel>
+                </StackPanel>
+              </Expander>
+            </StackPanel>
+          </ScrollViewer>
+          <Border Grid.Row="2" BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0" Padding="18,10">
+            <StackPanel>
+              <Button x:Name="GenerateButton" Content="Generate Sprite ↗" Style="{StaticResource Primary}" Click="Generate" Margin="0,0,0,3" />
+              <Button x:Name="CancelButton" Content="Cancel generation" Click="Cancel" IsEnabled="False" Visibility="{Binding IsEnabled, RelativeSource={RelativeSource Self}, Converter={StaticResource VisibleWhen}}" />
+              <TextBlock Text="Render settings apply to newly generated frames" FontSize="10" Foreground="{DynamicResource Muted}" TextAlignment="Center" />
+            </StackPanel>
+          </Border>
+        </Grid>
       </Border>
-      <TextBlock x:Name="ComparisonInfo" Grid.Row="4" TextWrapping="Wrap" FontSize="11" Foreground="#A8B7CA" Text="Compare four recent session renders and preserved favorites. Rotation does not delete files; unsaved sessions are cleaned on close."/>
-     </Grid>
+      <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="Transparent" />
+      <Grid Grid.Column="2" Margin="20,12,20,8">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <DockPanel Margin="0,0,0,8">
+          <Button Content="Preview" Click="ShowPreview" Background="Transparent" BorderThickness="0,0,0,2" x:Name="PreviewTab" BorderBrush="{DynamicResource Accent}" />
+          <Button x:Name="CompareButton" Content="Compare" Click="ToggleCompare" ToolTip="Compare saved renders without rendering" Background="Transparent" BorderThickness="0" />
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+            <RadioButton x:Name="CheckerInput" GroupName="PreviewMode" Content="Checkerboard" IsChecked="True" Checked="CheckerChanged" Style="{StaticResource Segment}" />
+            <RadioButton x:Name="GameGroundInput" GroupName="PreviewMode" Content="Ground Preview" Checked="CheckerChanged" Style="{StaticResource Segment}" />
+            <ComboBox x:Name="ZoomInput" SelectionChanged="ZoomChanged" Width="80" Margin="12,0,0,0">
+              <ComboBoxItem Content="Fit" IsSelected="True" />
+              <ComboBoxItem Content="1×" />
+              <ComboBoxItem Content="2×" />
+              <ComboBoxItem Content="4×" />
+              <ComboBoxItem Content="8×" />
+              <ComboBoxItem Content="16×" />
+            </ComboBox>
+          </StackPanel>
+        </DockPanel>
+        <Border x:Name="PreviewBorder" Grid.Row="1" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="6" ClipToBounds="True">
+          <Grid>
+            <ScrollViewer x:Name="PreviewScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" SizeChanged="PreviewSizeChanged">
+              <Image x:Name="PreviewImage" Stretch="Fill" HorizontalAlignment="Center" VerticalAlignment="Center" RenderOptions.BitmapScalingMode="NearestNeighbor" />
+            </ScrollViewer>
+            <TextBlock x:Name="EmptyPreview" Text="Your model, translated into pixels.&#xA;Generate a sprite to see the result here." TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource Muted}" />
+          </Grid>
+        </Border>
+        <Border x:Name="ComparisonPanel" Grid.Row="1" Grid.RowSpan="4" Visibility="Collapsed" Background="{DynamicResource Panel}" CornerRadius="6" Padding="10">
+          <Grid>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+              <RowDefinition />
+              <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition />
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <DockPanel>
+                  <TextBlock Text="Render A" />
+                  <Button x:Name="FavoriteA" Content="☆" DockPanel.Dock="Right" HorizontalAlignment="Right" Padding="8,2" Tag="A" Click="ToggleFavorite" ToolTip="Permanently preserve this editable render in the Library. Removing a favorite does not delete artwork." />
+                </DockPanel>
+                <ComboBox x:Name="RenderAInput" DisplayMemberPath="Label" SelectionChanged="ComparisonSelectionChanged" />
+                <TextBlock x:Name="RenderAInfo" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Muted}" />
+                <WrapPanel>
+                  <Button Content="◀" Tag="A,-1" Click="StepComparison" Padding="8,3" />
+                  <TextBox x:Name="CompareFrameA" Text="1" Width="48" LostKeyboardFocus="CommitComparisonFrame" PreviewKeyDown="ComparisonFrameKey" ToolTip="Frame A (1-based)" />
+                  <Button Content="▶" Tag="A,1" Click="StepComparison" Padding="8,3" />
+                </WrapPanel>
+              </StackPanel>
+              <StackPanel Grid.Column="2">
+                <DockPanel>
+                  <TextBlock Text="Render B" />
+                  <Button x:Name="FavoriteB" Content="☆" DockPanel.Dock="Right" HorizontalAlignment="Right" Padding="8,2" Tag="B" Click="ToggleFavorite" ToolTip="Permanently preserve this editable render in the Library. Removing a favorite does not delete artwork." />
+                </DockPanel>
+                <ComboBox x:Name="RenderBInput" DisplayMemberPath="Label" SelectionChanged="ComparisonSelectionChanged" />
+                <TextBlock x:Name="RenderBInfo" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Muted}" />
+                <WrapPanel>
+                  <Button Content="◀" Tag="B,-1" Click="StepComparison" Padding="8,3" />
+                  <TextBox x:Name="CompareFrameB" Text="1" Width="48" LostKeyboardFocus="CommitComparisonFrame" PreviewKeyDown="ComparisonFrameKey" ToolTip="Frame B (1-based)" />
+                  <Button Content="▶" Tag="B,1" Click="StepComparison" Padding="8,3" />
+                </WrapPanel>
+              </StackPanel>
+            </Grid>
+            <WrapPanel Grid.Row="1">
+              <ComboBox x:Name="CompareModeInput" SelectedIndex="0" SelectionChanged="ComparisonModeChanged" Width="150">
+                <ComboBoxItem Content="Comparison slider" />
+                <ComboBoxItem Content="Side by side" />
+              </ComboBox>
+              <Button Content="Match source → B" Click="MatchSourceFrame" Padding="8,4" ToolTip="Match the same Blender frame of the same source model" />
+              <Button Content="Match time → B" Click="MatchTimeFrame" Padding="8,4" ToolTip="Match elapsed playback time; unequal clip lengths clamp to the final frame" />
+              <Button Content="Add saved render…" Click="AddSavedRender" Padding="8,4" />
+            </WrapPanel>
+            <Grid x:Name="DividerPanel" Grid.Row="2">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition />
+              </Grid.ColumnDefinitions>
+              <TextBlock Text="Reveal A" Margin="0,5,8,5" />
+              <local:NumericSlider x:Name="DividerInput" Grid.Column="1" Minimum="0" Maximum="100" Value="50" Unit="%" ValueChanged="DividerChanged" />
+            </Grid>
+            <Border x:Name="ComparisonBackground" Grid.Row="3" BorderBrush="{DynamicResource Border}" BorderThickness="1" ClipToBounds="True">
+              <ScrollViewer x:Name="ComparisonScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" SizeChanged="ComparisonSizeChanged" PreviewMouseDown="ComparisonPanStart" PreviewMouseMove="ComparisonPanMove" PreviewMouseUp="ComparisonPanEnd">
+                <Canvas x:Name="ComparisonCanvas" HorizontalAlignment="Center" VerticalAlignment="Center" Background="Transparent">
+                  <Canvas x:Name="CompareHostB">
+                    <Image x:Name="CompareImageB" Stretch="Fill" RenderOptions.BitmapScalingMode="NearestNeighbor" />
+                  </Canvas>
+                  <Canvas x:Name="CompareHostA">
+                    <Image x:Name="CompareImageA" Stretch="Fill" RenderOptions.BitmapScalingMode="NearestNeighbor" />
+                  </Canvas>
+                  <Grid x:Name="CompareDivider" Width="20" IsHitTestVisible="False">
+                    <Border Width="1" Background="{DynamicResource Accent}" />
+                    <Border Width="16" Height="28" VerticalAlignment="Center" Background="{DynamicResource Accent}" CornerRadius="4">
+                      <TextBlock Text="↔" Foreground="{DynamicResource AccentText}" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0" />
+                    </Border>
+                  </Grid>
+                  <Thumb xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" x:Name="DividerThumb" Width="20" Cursor="SizeWE" DragDelta="DragDivider">
+                    <Thumb.Template>
+                      <ControlTemplate TargetType="Thumb">
+                        <Border Background="Transparent" />
+                      </ControlTemplate>
+                    </Thumb.Template>
+                  </Thumb>
+                </Canvas>
+              </ScrollViewer>
+            </Border>
+            <TextBlock x:Name="ComparisonInfo" Grid.Row="4" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Muted}" Text="Compare four recent session renders and preserved favorites. Rotation does not delete files; unsaved sessions are cleaned on close." />
+          </Grid>
+        </Border>
+        <StackPanel x:Name="PlaybackTools" Grid.Row="2">
+          <StackPanel x:Name="TimelinePanel" Visibility="Collapsed" Margin="0,5">
+            <Slider x:Name="TimelineInput" Minimum="0" Maximum="1" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="ScrubFrame" />
+            <WrapPanel VerticalAlignment="Center">
+              <Button Content="◀" ToolTip="Previous frame" Click="PreviousFrame" />
+              <Button x:Name="PlayButton" Content="Play" Click="PlayPause" />
+              <Button Content="▶" ToolTip="Next frame" Click="NextFrame" />
+              <CheckBox x:Name="LoopInput" Content="Loop" IsChecked="True" Margin="4,5" />
+              <TextBlock x:Name="FrameInfo" Margin="8,6" />
+              <TextBlock Text="Playback FPS" Margin="12,6,0,6" />
+              <TextBox x:Name="PreviewFpsInput" Text="12" Width="52" Margin="8,2" TextChanged="PreviewFpsChanged" ToolTip="1–120 FPS; changes affect these cached frames immediately" />
+              <TextBlock x:Name="DurationInfo" Margin="8,6" />
+              <Button x:Name="ApplyTimingButton" Content="Save timing" Click="ApplyTiming" IsEnabled="False" />
+            </WrapPanel>
+            <TextBlock x:Name="TimingInfo" Text="Playback timing is independent of Blender frame sampling." Foreground="{DynamicResource Muted}" FontSize="10" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
+          </StackPanel>
+          <WrapPanel>
+            <Button x:Name="InspectRangeButton" Content="Inspect Animation Range" Click="InspectRange" IsEnabled="{Binding IsEnabled, ElementName=GenerateButton}" />
+            <TextBlock x:Name="InspectionInfo" Text="Source range and playback" Foreground="{DynamicResource Muted}" FontSize="10" Margin="4,6" />
+          </WrapPanel>
+        </StackPanel>
+        <ScrollViewer x:Name="OutputDetails" Grid.Row="3" Height="48" Margin="0,3" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+          <ScrollViewer.Style>
+            <Style TargetType="ScrollViewer">
+              <Style.Triggers>
+                <DataTrigger Binding="{Binding Text, ElementName=OutputInfo}" Value="">
+                  <Setter Property="Visibility" Value="Collapsed" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Visibility, ElementName=OutputInfo}" Value="Collapsed">
+                  <Setter Property="Visibility" Value="Collapsed" />
+                </DataTrigger>
+              </Style.Triggers>
+            </Style>
+          </ScrollViewer.Style>
+          <StackPanel>
+            <TextBlock x:Name="OutputInfo" TextWrapping="Wrap" Foreground="{DynamicResource Muted}" FontSize="10" />
+            <TextBlock x:Name="CanvasInfo" Foreground="{DynamicResource Muted}" FontSize="10" />
+          </StackPanel>
+        </ScrollViewer>
+        <DockPanel Grid.Row="4" LastChildFill="False">
+          <StackPanel x:Name="ExportPanel" DockPanel.Dock="Right" IsEnabled="False">
+            <Button Content="•••" Click="ExportMenu" ToolTip="More export actions" />
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" x:Name="PrimaryExports" IsEnabled="{Binding IsEnabled, ElementName=ExportPanel}" Visibility="{Binding Visibility, ElementName=ExportPanel}">
+            <Button Content="Save Current PNG" Click="SavePng" />
+            <Button Content="Save Spritesheet" Click="SaveSheet" />
+            <Button Content="Open in Aseprite" Click="OpenAseprite" />
+          </StackPanel>
+        </DockPanel>
+      </Grid>
+    </Grid>
+    <Border Grid.Row="2" Background="{DynamicResource Panel}" BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0">
+      <StackPanel>
+        <ProgressBar x:Name="Progress" Height="2" IsIndeterminate="False" />
+        <Grid Margin="18,2">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <TextBlock x:Name="Status" Text="Ready · renders are temporary until exported or preserved." TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" FontSize="11" VerticalAlignment="Center" />
+          <Expander Grid.Column="1" Header="Details" Width="160">
+            <TextBox x:Name="ErrorDetails" IsReadOnly="True" Height="90" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" />
+          </Expander>
+        </Grid>
+      </StackPanel>
     </Border>
-    <StackPanel x:Name="PlaybackTools" Grid.Row="2"><WrapPanel><Button x:Name="InspectRangeButton" Content="Inspect Animation Range" Click="InspectRange"/><TextBlock x:Name="InspectionInfo" Text="Source range and playback" Foreground="#98A6BA"/></WrapPanel><StackPanel x:Name="TimelinePanel" Visibility="Collapsed" Margin="0,8">
-     <WrapPanel><Button Content="◀ Frame" Click="PreviousFrame"/><Button x:Name="PlayButton" Content="Play" Click="PlayPause"/><Button Content="Frame ▶" Click="NextFrame"/><CheckBox x:Name="LoopInput" Content="Loop" IsChecked="True"/><TextBlock x:Name="FrameInfo" Margin="12,6"/></WrapPanel>
-     <WrapPanel VerticalAlignment="Center"><TextBlock Text="Playback FPS" VerticalAlignment="Center"/><TextBox x:Name="PreviewFpsInput" Text="12" Width="62" Margin="8,2" TextChanged="PreviewFpsChanged" ToolTip="1–120 FPS; changes affect these cached frames immediately"/><TextBlock x:Name="DurationInfo" Margin="8,6"/><Button x:Name="ApplyTimingButton" Content="Apply / Save timing" Click="ApplyTiming" IsEnabled="False"/></WrapPanel>
-     <TextBlock x:Name="TimingInfo" Text="Playback timing is independent of Blender frame sampling." Foreground="#98A6BA" FontSize="12" TextWrapping="Wrap"/>
-     <Slider x:Name="TimelineInput" Minimum="0" Maximum="1" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="ScrubFrame"/>
-    </StackPanel>
-    </StackPanel>
-    <ScrollViewer x:Name="OutputDetails" Grid.Row="3" Height="96" Margin="0,10" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-     <ScrollViewer.Style><Style TargetType="ScrollViewer"><Style.Triggers><DataTrigger Binding="{Binding Text, ElementName=OutputInfo}" Value=""><Setter Property="Visibility" Value="Collapsed"/></DataTrigger><DataTrigger Binding="{Binding Visibility, ElementName=OutputInfo}" Value="Collapsed"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></ScrollViewer.Style>
-     <TextBlock x:Name="OutputInfo" TextWrapping="Wrap" Foreground="#A8B7CA"/>
-    </ScrollViewer>
-    <StackPanel x:Name="ExportPanel" Grid.Row="4" IsEnabled="False"><Expander Header="More export actions"><WrapPanel><Button Content="Save Aseprite…" Click="SaveNative"/><Button Content="Export PNG frames…" Click="SaveFrames"/><Button Content="Reload saved edits" Click="ReloadEdits"/><Button Content="Show working folder" Click="ShowOutput"/><Button Content="Preserve editable render" Click="PreserveCurrent"/></WrapPanel></Expander></StackPanel>
-   </Grid>
   </Grid>
-  <StackPanel Grid.Row="2" Margin="0,14,0,0"><ProgressBar x:Name="Progress" Height="3" IsIndeterminate="False"/><TextBlock x:Name="Status" Text="Ready · renders are temporary until exported or preserved." TextWrapping="Wrap"/><Expander Header="Technical details"><TextBox x:Name="ErrorDetails" IsReadOnly="True" Height="90" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/></Expander></StackPanel>
- </Grid>
 </Window>

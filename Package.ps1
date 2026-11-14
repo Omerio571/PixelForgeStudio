@@ -5,7 +5,7 @@ $published = (Resolve-Path -LiteralPath $PublishedFolder).Path
 $releaseRoot = Join-Path $sourceRoot 'artifacts/releases'
 $workRoot = Join-Path $sourceRoot 'artifacts/work'
 New-Item -ItemType Directory -Path $releaseRoot,$workRoot -Force | Out-Null
-$zipPath = Join-Path $releaseRoot 'PixelForge-Studio-v0.3.4-win-x64.zip'
+$zipPath = Join-Path $releaseRoot 'PixelForge-Studio-v0.4.0-win-x64.zip'
 if ($CreateZip -and (Test-Path -LiteralPath $zipPath)) { throw 'Release ZIP already exists; it will not be overwritten.' }
 $config = Get-Content -LiteralPath (Join-Path $published '.runtime-manifest.json') -Raw | ConvertFrom-Json
 if (!$config.runtimeOptions.includedFrameworks) { throw 'The publish output must be self-contained.' }
@@ -34,7 +34,7 @@ try {
 Copy-Item -LiteralPath (Join-Path $published 'PixelForge Studio.exe') -Destination $bundle
 Copy-Item -LiteralPath (Join-Path $published 'bridge') -Destination $bundle -Recurse
 foreach ($file in @('Launch PixelForge.cmd','README.md','CHANGELOG.md','LICENSE','THIRD_PARTY_NOTICES.md')) { Copy-Item -LiteralPath (Join-Path $sourceRoot $file) -Destination $bundle }
-foreach ($file in @('docs/USAGE.md','docs/release/PREPARING.md','docs/release/VERIFICATION.md','docs/release/v0.3.4.md','docs/images/app.jpg','docs/images/grouping.png','docs/images/shadow-fit.png','docs/images/grouping.gif','docs/images/mine.png')) {
+foreach ($file in @('docs/USAGE.md','docs/release/PREPARING.md','docs/release/VERIFICATION.md','docs/release/v0.4.0.md','docs/release/v0.4.0-verification.md','docs/images/app.jpg','docs/images/ui-dark.png','docs/images/ui-light.png','docs/images/grouping.png','docs/images/shadow-fit.png','docs/images/grouping.gif','docs/images/mine.png')) {
     $target = Join-Path $bundle $file
     New-Item -ItemType Directory -Path (Split-Path $target) -Force | Out-Null
     Copy-Item -LiteralPath (Join-Path $sourceRoot $file) -Destination $target
