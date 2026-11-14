@@ -11,7 +11,15 @@ public readonly record struct Rgb(byte R, byte G, byte B)
 public static class Palette
 {
     public const int MaximumColors=4096; // Native projects are RGB, not indexed (no 256-color cap).
-    public static Rgb[] ParseList(string text)
+    public static Rgb[] ParseList(string text)=>ParseList(text,out _);
+    public static Rgb[] ParseList(string text,out int duplicates)
+    {
+        var entries=ParseEntries(text);
+        var colors=Normalize(entries);
+        duplicates=entries.Length-colors.Length;
+        return colors;
+    }
+    private static Rgb[] ParseEntries(string text)
     {
         text=text.Trim();
         if(text.Length==0)throw new FormatException("Paste HEX colors or RGB triples first.");
@@ -23,14 +31,14 @@ public static class Palette
                 var root=json.RootElement;
                 if(root.ValueKind!=System.Text.Json.JsonValueKind.Array)throw new FormatException("Expected an RGB list.");
                 if(root.GetArrayLength()==3&&root.EnumerateArray().All(v=>v.ValueKind==System.Text.Json.JsonValueKind.Number))return [ParseColor(string.Join(',',root.EnumerateArray().Select(v=>v.ToString())))];
-                return Normalize(root.EnumerateArray().Select(v=>v.ValueKind==System.Text.Json.JsonValueKind.String?ParseColor(v.GetString()!):ParseColor(string.Join(',',v.EnumerateArray().Select(n=>n.ToString())))));
+                return root.EnumerateArray().Select(v=>v.ValueKind==System.Text.Json.JsonValueKind.String?ParseColor(v.GetString()!):ParseColor(string.Join(',',v.EnumerateArray().Select(n=>n.ToString())))).ToArray();
             }
             catch(Exception e)when(e is System.Text.Json.JsonException or InvalidOperationException){throw new FormatException("Use a JSON list such as [[255,170,0],[112,119,132]] or [\"#242735\",\"#707784\"].",e);}
         }
         var hexTokens=Regex.Split(text,@"[\s,;]+").Where(s=>s.Length>0).ToArray();
-        if(text.Contains('#')||hexTokens.All(s=>Regex.IsMatch(s,"^[0-9a-fA-F]{6}$")))return Normalize(hexTokens.Select(ParseColor));
+        if(text.Contains('#')||hexTokens.All(s=>Regex.IsMatch(s,"^[0-9a-fA-F]{6}$")))return hexTokens.Select(ParseColor).ToArray();
         var rows=Regex.Split(text,@"[;\r\n]+").Where(s=>!string.IsNullOrWhiteSpace(s)).ToArray();
-        return Normalize(rows.Select(ParseColor));
+        return rows.Select(ParseColor).ToArray();
     }
     private static Rgb[] Normalize(IEnumerable<Rgb> colors)
     {
@@ -84,6 +92,8 @@ public static class Palette
     public static Rgb[] SelectIndices(IReadOnlyList<Rgb> source, string indices)
     {
         if (string.IsNullOrWhiteSpace(indices)) return source.ToArray();
+        if(indices.Contains('#')||Regex.IsMatch(indices,@"\b(?=[0-9a-fA-F]*[a-fA-F])[0-9a-fA-F]{6}\b"))
+            throw new ArgumentException("HEX colors belong in Add Colors (HEX / RGB), under Manage Colors. Source Color Indices accepts zero-based numbers such as 0,2,5; leave it blank to use all source colors.");
         return Regex.Split(indices.Trim(), @"[\s,]+").Select(s => int.TryParse(s, out var i) && i >= 0 && i < source.Count ? source[i] : throw new ArgumentException($"Palette index '{s}' is outside 0–{source.Count - 1}.")).ToArray();
     }
     public static Rgb[] Load(string path)

@@ -4,6 +4,16 @@ Meaningful development changes, newest first. Historical entries follow saved ve
 
 ## v0.4.0 — Modern desktop workspace
 
+### UI polish and fixes
+
+- Clearly separated Add Colors (HEX / RGB) from collapsed advanced Source Color Indices. Multi-add accepts semicolon/newline/whitespace HEX, RGB and JSON, validates complete batches, preserves order and reports skipped duplicates without partial edits.
+- Replaced forced narrow columns with responsive lighting, camera and outline cards; clarified Key Light Intensity as the existing raw Blender Sun strength and kept complete percentage labels and numeric precision.
+- Added full-width bottom diagnostics with a resize boundary, wrapping/scrolling, errors, warnings, recent progress, build details and clipboard copying.
+- Retained independent disk-backed dialog directories, normalized relative selections and added graceful fallback for missing or unreadable locations.
+- Simplified the title/header to PixelForge Studio and moved the automatic assembly version to the status bar.
+
+### Workspace overhaul
+
 - Implemented the approved mint-accent workspace with a compact header, resizable settings sidebar, seven remembered sections, prominent pixel preview and separate Generate/export areas.
 - Added complete live Light and Dark themes, remembered across restarts, and reusable WPF templates for inputs, dropdowns, segments, sliders, scrollbars, menus, tooltips, progress and application-owned confirmations.
 - Moved playback FPS, duration, timeline and transport together; secondary exports are available from the preview's ••• menu. Settings load/save is in the header.

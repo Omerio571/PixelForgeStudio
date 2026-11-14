@@ -1,4 +1,3 @@
-using System.Reflection;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -35,8 +34,6 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        string? revision=typeof(MainWindow).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split("+").ElementAtOrDefault(1);
-        if(!string.IsNullOrEmpty(revision))Title+=" · build "+revision[..Math.Min(7,revision.Length)];
         ViewInput.ItemsSource=Enum.GetValues<CameraView>();ViewInput.SelectedItem=CameraView.IsometricSE;
         ProjectionInput.ItemsSource=Enum.GetValues<Projection>();ProjectionInput.SelectedItem=Projection.Dimetric2To1;
         OutlineTypeInput.ItemsSource=Enum.GetValues<OutlineStyle>();OutlineTypeInput.SelectedItem=OutlineStyle.OuterSilhouette;
@@ -52,7 +49,7 @@ public partial class MainWindow : Window
     }
     private sealed record Preferences(string OutputRoot,int Zoom,bool Checker,bool Ground=false,bool Loop=true,AssetSettings? LastSettings=null,Dictionary<string,bool>? NumericModes=null,Dictionary<string,string>? DialogPaths=null,bool Manage=false,string? PaletteName=null,string? OutlineDraft=null,string[]? PaletteColors=null,string Theme="Dark",Dictionary<string,bool>? Sections=null);
     private void Try(Action action){try{action();}catch(Exception e){Error(e);}}
-    private void Error(Exception e){Status.Text=e.Message;ErrorDetails.Text=e.ToString();ThemedMessage(e.Message,"PixelForge Studio",MessageBoxButton.OK,MessageBoxImage.Warning);}
+    private void Error(Exception e){Status.Text=e.Message;ErrorDetails.AppendText((string.IsNullOrEmpty(ErrorDetails.Text)?"":Environment.NewLine+Environment.NewLine)+e);ThemedMessage(e.Message,"PixelForge Studio",MessageBoxButton.OK,MessageBoxImage.Warning);}
     private async void BrowseModel(object sender,RoutedEventArgs e){var d=new OpenFileDialog{Filter="Blender model|*.blend"};Prepare(d,"models");if(d.ShowDialog()==true){ModelPath.Text=d.FileName;session?.ProtectInput(d.FileName);RememberFile("models",d.FileName);await InspectSelectedModel();}}
     private async void ImportPalette(object sender,RoutedEventArgs e)
     {
@@ -90,7 +87,28 @@ public partial class MainWindow : Window
     private void ResetPalette(object sender,RoutedEventArgs e){paletteName="Project default";selectedSwatch=-1;sourcePalette=Palette.Default.ToArray();selectedPalette=sourcePalette.ToArray();Indices.Text="";ShowPalette();}
     private void ClearPalette(object sender,RoutedEventArgs e){if(selectedPalette.Length>0&&Choose("Clear palette","Remove all colors from the working palette? The imported palette file is not modified.","Clear","Cancel")!=0)return;paletteName="Empty palette";selectedSwatch=-1;sourcePalette=[];selectedPalette=[];Indices.Text="";ShowPalette();Status.Text="Palette cleared. Import or add colors before generating.";}
     private void ApplyIndices(object sender,RoutedEventArgs e)=>Try(()=>{selectedPalette=Palette.SelectIndices(sourcePalette,Indices.Text);ShowPalette();});
-    private void AddColors(object sender,RoutedEventArgs e)=>Try(()=>{var added=Palette.ParseList(DirectColors.Text);var combined=selectedPalette.Concat(added).Distinct().ToArray();if(combined.Length>Palette.MaximumColors)throw new ArgumentException("Use at most 4096 approved colors.");if(combined.Length!=selectedPalette.Length)MarkPaletteEdited();sourcePalette=combined;selectedPalette=sourcePalette.ToArray();Indices.Text="";DirectColors.Clear();ShowPalette();});
+    private void AddColors(object sender,RoutedEventArgs e)=>Try(()=>
+    {
+        try
+        {
+            var added=Palette.ParseList(DirectColors.Text,out int repeated);
+            var fresh=added.Except(selectedPalette).ToArray();
+            int skipped=repeated+added.Length-fresh.Length;
+            var combined=selectedPalette.Concat(fresh).ToArray();
+            if(combined.Length>Palette.MaximumColors)throw new ArgumentException($"Use at most {Palette.MaximumColors} approved colors. No colors were added.");
+            // Parse and validate the complete batch before changing any palette state.
+            if(fresh.Length>0)MarkPaletteEdited();
+            sourcePalette=combined;selectedPalette=combined.ToArray();Indices.Clear();DirectColors.Clear();ShowPalette();
+            PaletteEditFeedback.SetResourceReference(TextBlock.ForegroundProperty,"Muted");
+            PaletteEditFeedback.Text=$"Added {fresh.Length} color(s) · {skipped} duplicate(s) skipped · {combined.Length} total.";
+            Status.Text=PaletteEditFeedback.Text;SavePreferences();
+        }
+        catch(Exception ex)when(ex is ArgumentException or FormatException or InvalidDataException)
+        {
+            PaletteEditFeedback.SetResourceReference(TextBlock.ForegroundProperty,"Error");
+            PaletteEditFeedback.Text="No colors added. "+ex.Message;throw;
+        }
+    });
     private void Preset(object sender,RoutedEventArgs e){string size=((Button)sender).Tag.ToString()!;WidthInput.Text=size;HeightInput.Text=size;}
     private AssetSettings ReadSettings()
     {

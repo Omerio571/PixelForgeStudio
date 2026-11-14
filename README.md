@@ -14,6 +14,8 @@ A Windows desktop application that transforms Blender models and animations into
 - Saved preferences, numeric controls, resolution presets and read-only render comparison.
 - Temporary render sessions, permanently preserved favorites, separate last-used directories and compact color management.
 
+Paste batches into **Add Colors (HEX / RGB)** under Manage Colors; HEX separators may be semicolons, newlines or whitespace. **Source Color Indices** is a separate advanced numeric-only field. **Details** opens resizable full-width diagnostics with Copy details. Independent file-dialog folders and theme preferences are saved in the user application-data directory.
+
 See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 ## Screenshots

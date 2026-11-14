@@ -1,6 +1,8 @@
 using System.Windows;
 using System.Windows.Controls;
 using PixelForge.Core;
+using System.ComponentModel;
+using System.Reflection;
 
 namespace PixelForge.Desktop;
 
@@ -14,11 +16,28 @@ public partial class MainWindow
 
     private void InitializePresentation()
     {
+        var information = typeof(MainWindow).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+            ?? typeof(MainWindow).Assembly.GetName().Version?.ToString(3) ?? "unknown";
+        VersionLabel.Text = $"PixelForge Studio → v{information.Split('+')[0]}";
+        BuildIdentity.Text = "Build · " + information;
+        var descriptor = DependencyPropertyDescriptor.FromProperty(TextBlock.TextProperty, typeof(TextBlock));
+        EventHandler statusChanged = (_, _) =>
+        {
+            DiagnosticLog.AppendText($"{DateTime.Now:HH:mm:ss} · {Status.Text}{Environment.NewLine}");
+            if (DiagnosticLog.Text.Length > 64000) DiagnosticLog.Text = DiagnosticLog.Text[^48000..];
+        };
+        descriptor.AddValueChanged(Status, statusChanged);
+        statusChanged(this, EventArgs.Empty);
+        Closed += (_, _) => descriptor.RemoveValueChanged(Status, statusChanged);
         // Avoid Windows' cascading placement putting the tall workspace off screen.
         Width = Math.Max(MinWidth, Math.Min(Width, SystemParameters.WorkArea.Width));
         Height = Math.Max(MinHeight, Math.Min(Height, SystemParameters.WorkArea.Height));
         SetChecker();
         DpiChanged += (_, _) => UpdateZoom();
+        SizeChanged += (_, _) =>
+        {
+            if (DetailsToggle.IsChecked == true) DiagnosticsRow.MaxHeight = Math.Min(420, Math.Max(140, ActualHeight * .45));
+        };
         foreach (var section in SettingsSections())
         {
             section.Expanded += (_, _) => SavePreferences();
@@ -27,6 +46,23 @@ public partial class MainWindow
         foreach (var control in NumericControls(true))
             System.Windows.Automation.AutomationProperties.SetName(control, control.Name.Replace("Input", ""));
     }
+
+    private void DetailsChanged(object sender, RoutedEventArgs e)
+    {
+        if (DiagnosticsRow is null || DiagnosticsPanel is null) return;
+        bool expanded = DetailsToggle.IsChecked == true;
+        DiagnosticsRow.MaxHeight = Math.Min(420, Math.Max(140, ActualHeight * .45));
+        DiagnosticsRow.MinHeight = expanded ? 140 : 0;
+        DiagnosticsRow.Height = new GridLength(expanded ? Math.Min(260, DiagnosticsRow.MaxHeight) : 0);
+        DiagnosticsPanel.Visibility = expanded ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void CloseDiagnostics(object sender, RoutedEventArgs e) => DetailsToggle.IsChecked = false;
+
+    private void CopyDiagnostics(object sender, RoutedEventArgs e) => Try(() => Clipboard.SetText(
+        string.Join(Environment.NewLine + Environment.NewLine,
+            new[] { BuildIdentity.Text, Status.Text, OutputInfo.Text, ErrorDetails.Text, DiagnosticLog.Text }
+                .Where(text => !string.IsNullOrWhiteSpace(text)))));
 
     private void UpdateCanvasInfo(ConversionOutput asset)
     {

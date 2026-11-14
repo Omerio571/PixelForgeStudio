@@ -2,6 +2,9 @@ using System.IO;
 using System.Security.Cryptography;
 using PixelForge.Core;
 
+if(args.Length>0&&args[0]=="--polish-pixels") { PolishChecks.ComparePixels(args[1],args[2]); return; }
+if(args.Length>0&&args[0]=="--ui-polish") { PolishChecks.Run(args[1],args.Length>2?args[2]:"outputs/ui-polish"); return; }
+if(args.Length>0&&args[0]=="--ui-polish-restore") { PolishChecks.Restore(args[1]); return; }
 if(args.Length>0&&args[0]=="--modern-ui") { ModernUiChecks.Run(args[1],args[2],args.Length>3?args[3]:"outputs/modern-ui"); return; }
 if(args.Length>0&&args[0]=="--padding-compare") { await PaddingChecks.Compare(args[1],args[2]); return; }
 if(args.Length>0&&args[0]=="--padding-measure") { PaddingChecks.MeasureExports(args[1]); return; }
