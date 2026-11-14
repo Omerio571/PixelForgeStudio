@@ -81,7 +81,7 @@ public static class PixelEngine
         bool clipped=false;
         for(int y=0;y<h;y++) for(int x=0;x<w;x++) { int p=(y*w+x)*4; if(clean[p+3]==0)continue; used.Add(ColorAt(clean,p)); if(x==0||y==0||x==w-1||y==h-1)clipped=true; }
         if(used.Count==0&&!settings.Animation)throw new InvalidDataException("The render produced no visible pixels. Check geometry, camera and scale.");
-        if(clipped) warnings.Add("Opaque pixels touch the canvas edge; increase padding and review clipping.");
+        if(clipped) warnings.Add(settings.Padding==0?"Opaque pixels reach the canvas edge at zero padding; review the silhouette for clipping.":"Opaque pixels touch the canvas edge; increase padding and review clipping.");
         if(used.Count<3)warnings.Add("Fewer than three palette shades are used; shading or material separation may be limited.");
         var grouped=settings.RespectOutlineGroups&&outlineGroups is not null?labels.Select(id=>outlineGroups.TryGetValue(id,out int group)?group:id).ToArray():null;
         var result=new PixelResult(new(w,h,clean),labels,warnings.ToArray(),OutlineIds:grouped,GroupKeys:grouped is null?null:outlineGroups!.Values.Distinct().ToArray());

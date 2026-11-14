@@ -13,6 +13,11 @@ Meaningful development changes, newest first. Historical entries follow saved ve
 - Visual outline swatch/palette picker, RGB picker, editable HEX and explicit approval of custom colors in the strict palette.
 - Leased temporary render sessions, normal-close/stale-session cleanup, protected changed/input files and permanent preservation of favorites/editable renders.
 
+### Fixed
+- Removed the hidden minimum camera span so very small world-unit models fit the requested canvas at zero padding.
+- Kept the preview viewport stable when edge/shadow warnings change, preventing misleading jumps in pixel-perfect Fit zoom.
+- Corrected the padding range to 0–0.40, retained compact numeric formatting, and exposed the build revision in the title to distinguish stale v0.3.4 copies.
+- Established local main as the normal development branch and recorded the project rule without rewriting history or pushing.
 ### Changed
 - Mutually exclusive remembered Checkerboard/Ground Preview segments; dependent controls collapse without resetting values.
 - Inspect Animation Range sits beside playback; primary bottom-left actions are Save Current PNG, Save Spritesheet and Open in Aseprite.

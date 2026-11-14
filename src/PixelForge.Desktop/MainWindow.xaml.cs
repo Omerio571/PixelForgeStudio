@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -33,7 +34,10 @@ public partial class MainWindow : Window
     private string outputRoot=Environment.GetEnvironmentVariable("PIXELFORGE_OUTPUT")??Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),"PixelForge Studio");
     public MainWindow()
     {
-        InitializeComponent();ViewInput.ItemsSource=Enum.GetValues<CameraView>();ViewInput.SelectedItem=CameraView.IsometricSE;
+        InitializeComponent();
+        string? revision=typeof(MainWindow).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split("+").ElementAtOrDefault(1);
+        if(!string.IsNullOrEmpty(revision))Title+=" · build "+revision[..Math.Min(7,revision.Length)];
+        ViewInput.ItemsSource=Enum.GetValues<CameraView>();ViewInput.SelectedItem=CameraView.IsometricSE;
         ProjectionInput.ItemsSource=Enum.GetValues<Projection>();ProjectionInput.SelectedItem=Projection.Dimetric2To1;
         OutlineTypeInput.ItemsSource=Enum.GetValues<OutlineStyle>();OutlineTypeInput.SelectedItem=OutlineStyle.OuterSilhouette;
         FitBoundsInput.ItemsSource=new Dictionary<FitBoundsSource,string>{{FitBoundsSource.ObjectOnly,"Object Only"},{FitBoundsSource.ObjectAndGroundShadow,"Object + Ground Shadow"}};FitBoundsInput.SelectedValue=FitBoundsSource.ObjectOnly;

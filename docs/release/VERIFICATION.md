@@ -1,3 +1,49 @@
+# v0.3.4 zero-padding follow-up
+
+Verified locally on Windows x64 with Blender 5.3.0, Aseprite 1.3.18.6 and .NET SDK 10.0.404. This update was developed on local main and does not publish a release or push to GitHub.
+
+## Reproduced causes and fixes
+
+1. The retained old extraction (`PixelForge.Desktop.exe`, build 749bb24) displayed Padding (0.02–0.4) and rejected an actual zero-padding settings file in its GUI. The current application is `artifacts/current/PixelForge Studio.exe`; the source-root launchers select it. The title now shows the build revision, and the label is Padding (0–0.40). Old user-selected extractions are not overwritten.
+2. The bridge imposed an undocumented 0.001 minimum camera span. A 0.0002-world-unit tile therefore could not fill its canvas. Fit now uses its actual positive projected extent, with an explicit error for nonfinite/degenerate extents. The GUI-rendered/exported tiny tile occupies all 32×32 pixels at padding zero; native layers and composites validate. Positive padding still yields the expected margin.
+3. Canvas-edge/shadow warnings changed the preview height. Integer Fit zoom could drop from 3× to 2× at zero padding, making the larger exported sprite look smaller on screen. The existing warning area now has a stable scrollable height. Actual 128×128 GUI rerenders retain the same integer zoom at zero/0.10, and their PNGs remain byte-identical to the measured exports. A long-warning WPF regression checks viewport and zoom stability.
+
+## Actual GUI pixel comparisons
+
+The same copied Blender model, IsometricSE camera and Dimetric2To1 projection were used at padding 0, 0.02 and 0.10. Each row keeps its other settings identical. All six PNGs were saved through the WPF Save Current PNG action. Their hashes match the generated frame PNGs; saved settings and Blender jobs contain the exact padding values.
+
+| Canvas / features | Padding 0 visible bounds | Padding 0.02 | Padding 0.10 |
+|---|---|---|---|
+| 32×32, outlines/shadows off | x0 y7, 32×25 | x1 y7, 30×24 | x3 y9, 26×20 |
+| 128×128, selective outlines/shadows on | x0 y27, 128×101 | x3 y28, 125×97 | x13 y34, 107×81 |
+
+Bounds include visible ground-shadow pixels. At 128×128 the model alone is respectively 128×101, 122×97 and 102×81. Decreasing padding does not shrink the fitted model. The model's projected width is 3.889087 world units and height is 3.077358: width limits a square canvas. The existing bottom/ground anchor leaves 7 or 27 empty top rows at zero; filling those rows would distort the aspect ratio. Zero adds no extra margin.
+
+Both resolutions also rendered three-frame animations through the real GUI with padding zero; shared camera, source preservation and native compositing passed. A GUI spritesheet export retains 32×32 frame dimensions, source order and durations. Slider/numeric switches retained 0.1 and exactly zero, displaying zero as 0. The exported comparison contact sheet was inspected visually at equal canvas magnification. Final tiny-tile export bounds are x0 y0, 32×32.
+
+Fit to Canvas and Consistent World Scale remain distinct. Fixed density keeps the requested pixels per unit, so zero does not force a small model to fill the canvas. Object Only ignores shadow bounds and may clip shadows; explicit Object + Shadow fit includes the shadow footprint/softness budget. Shared animation framing fits the motion union, so individual frames may leave space. No mode is silently switched.
+
+## Executed checks and Git
+
+| Suite | Passed |
+|---|---:|
+| Base | 25 |
+| New padding comparison matrix | 218 |
+| Zero padding, tiny geometry and stable preview layout | 43 |
+| Existing rendering/grouping/framing | 237 |
+| Timing/native edit preservation | 69 |
+| Existing usability/comparison/export | 68 |
+| Existing workflow/directory/preservation | 43 |
+| **Distinct total** | **703** |
+
+The comparison matrix renders 32/128, static/animated, outlines on/off, shadows on/off at all three paddings, plus shadow-inclusive/fixed-density cases. It measures model/composite bounds, exact serialized job values, camera span and exported pixels. Normal-model comparisons were followed by the tiny-scale floor fix and final 237-check framing regression. The 43-check padding suite tests the final bridge and warning layout. Two optional historical-assembly comparisons were skipped. `./Build.ps1 -Check -Publish` succeeded; publishing reported NU1900 when the vulnerability feed was unreachable. This is not a clean-machine test or an online vulnerability audit.
+
+There was no local/remote main branch when inspected. Local main was created from existing master and safely fast-forwarded through the latest a0ef963 work, including the user's image commit. All old commits/branches remain. AGENTS.md now explicitly requires main for normal development/commits and prohibits automatic branches, pushes or history rewrites. The completed fix is committed locally on main; remote branches and existing release ZIPs remain unchanged. README and MIT license remain unchanged.
+
+Evidence is retained under ignored `outputs/padding-fix/`: GUI exports, visible-bounds.json, comparison contact sheets, preserved GUI traces, exact settings/jobs, suite logs/results and native validation. Test artwork is preserved rather than overwritten. Historical verification reports follow.
+
+---
+
 # v0.3.4 final cleanup and zero-padding verification
 
 Verified on Windows x64, 2026-11-13, with .NET SDK 10.0.404, .NET/Windows Desktop 10.0.15, Blender 5.3.0 and Aseprite 1.3.18.6. GitHub Releases was checked: only V0.3.3 is published, so these changes remain v0.3.4. No push, tag or publication is automatic. This is not a clean-machine test.

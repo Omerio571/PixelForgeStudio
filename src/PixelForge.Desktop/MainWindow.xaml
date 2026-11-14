@@ -26,7 +26,7 @@
      <TextBlock Text="Camera and framing" Style="{StaticResource Section}"/>
      <ComboBox x:Name="ViewInput"/><ComboBox x:Name="ProjectionInput"/>
      <TextBlock Text="Fit bounds source"/><ComboBox x:Name="FitBoundsInput" DisplayMemberPath="Value" SelectedValuePath="Key" ToolTip="Object Only keeps machine scale unchanged by shadows. Shadow-inclusive fit is an explicit choice."/>
-     <TextBlock Text="Padding (0–0.4)" FontSize="12"/><local:NumericSlider x:Name="PaddingInput" Minimum="0" Maximum="0.4" Value="0.08" DecimalPlaces="2"/>
+     <TextBlock Text="Padding (0–0.40)" FontSize="12"/><local:NumericSlider x:Name="PaddingInput" Minimum="0" Maximum="0.4" Value="0.08" DecimalPlaces="2" ToolTip="Zero adds no framing margin. Fit to Canvas preserves proportions and the ground anchor. World scale fixes pixel density; shared animation or shadow bounds can leave space around an individual object."/>
      <CheckBox x:Name="WorldScaleInput" Content="Consistent world scale" Checked="ScaleModeChanged" Unchecked="ScaleModeChanged"/>
      <TextBlock x:Name="ScaleHelp" Text="Fit to Canvas preserves proportions; pixel density is inactive." TextWrapping="Wrap" Foreground="#98A6BA"/>
      <StackPanel Visibility="{Binding IsChecked, Converter={StaticResource VisibleWhen}, ElementName=WorldScaleInput}"><TextBlock Text="Pixels per Blender unit" FontSize="12"/><TextBox x:Name="PixelsPerUnitInput" TextChanged="PreciseTextChanged" Text="16"/></StackPanel>
@@ -116,7 +116,10 @@
      <Slider x:Name="TimelineInput" Minimum="0" Maximum="1" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="ScrubFrame"/>
     </StackPanel>
     </StackPanel>
-    <TextBlock x:Name="OutputInfo" Grid.Row="3" TextWrapping="Wrap" Foreground="#A8B7CA" Margin="0,10"/>
+    <ScrollViewer x:Name="OutputDetails" Grid.Row="3" Height="96" Margin="0,10" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+     <ScrollViewer.Style><Style TargetType="ScrollViewer"><Style.Triggers><DataTrigger Binding="{Binding Text, ElementName=OutputInfo}" Value=""><Setter Property="Visibility" Value="Collapsed"/></DataTrigger><DataTrigger Binding="{Binding Visibility, ElementName=OutputInfo}" Value="Collapsed"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></ScrollViewer.Style>
+     <TextBlock x:Name="OutputInfo" TextWrapping="Wrap" Foreground="#A8B7CA"/>
+    </ScrollViewer>
     <StackPanel x:Name="ExportPanel" Grid.Row="4" IsEnabled="False"><Expander Header="More export actions"><WrapPanel><Button Content="Save Aseprite…" Click="SaveNative"/><Button Content="Export PNG frames…" Click="SaveFrames"/><Button Content="Reload saved edits" Click="ReloadEdits"/><Button Content="Show working folder" Click="ShowOutput"/><Button Content="Preserve editable render" Click="PreserveCurrent"/></WrapPanel></Expander></StackPanel>
    </Grid>
   </Grid>

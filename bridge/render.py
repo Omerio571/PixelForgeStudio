@@ -114,7 +114,10 @@ json.dump({'projected_world_size':[xmax-xmin,ymax-ymin],'required_pixels':requir
 if job['WorldScale'] and (required[0]>job['Width'] or required[1]>job['Height']):
     subject = 'The animation' if job['Animation'] else 'The model'
     fail(f"{subject} needs approximately {required[0]}×{required[1]} pixels at {ppu:g} px/unit for the selected fit bounds, but your canvas is {job['Width']}×{job['Height']}. Reduce pixels per unit, increase canvas dimensions, or switch to Fit to Canvas. No rendering was started.")
-scale = job['Height']/ppu if job['WorldScale'] else max(ymax-ymin,(xmax-xmin)/aspect,.001)/usable
+fit_size = max(ymax-ymin,(xmax-xmin)/aspect)
+if not math.isfinite(fit_size) or fit_size <= 0:
+    fail('The selected view has no finite projected extent to frame.')
+scale = job['Height']/ppu if job['WorldScale'] else fit_size/usable
 shift_x = (xmin+xmax)/2
 shift_y = ymin+scale*(.5-job['Padding'])
 distance = max(max((Vector((x,y,z))-pivot).length for x in (lo.x,hi.x) for y in (lo.y,hi.y) for z in (lo.z,hi.z))*3,10)

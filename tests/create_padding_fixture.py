@@ -5,6 +5,8 @@ bpy.ops.mesh.primitive_plane_add(size=2)
 obj=bpy.context.object
 obj.name='Framing test tile'
 obj.scale.y=.5 if '--rectangle' in sys.argv else 1
+if '--tiny' in sys.argv:
+    obj.scale *= .0001
 mat=bpy.data.materials.new('Tile source material')
 mat.diffuse_color=(.35,.2,.1,1)
 obj.data.materials.append(mat)

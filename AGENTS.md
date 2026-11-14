@@ -8,3 +8,5 @@
 - Technical validity is not artistic approval. Report unsupported model features clearly.
 - Keep dependencies and configuration minimal. Build with `./Build.ps1 -Check`.
 - Comparison is read-only: retain file references, never regenerate/export artwork or delete outputs when history rotates. Keep numeric input modes in UI preferences, outside asset settings.
+
+- Use the main branch for normal development and commits. Do not create additional branches unless the user explicitly requests one. Never automatically push, force-push, or rewrite repository history.
