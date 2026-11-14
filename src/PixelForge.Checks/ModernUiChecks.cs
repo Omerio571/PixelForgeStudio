@@ -52,7 +52,7 @@ internal static class ModernUiChecks
             var dpi = VisualTreeHelper.GetDpi(surface);
             var image = new RenderTargetBitmap((int)Math.Ceiling(surface.ActualWidth * dpi.DpiScaleX),
                 (int)Math.Ceiling(surface.ActualHeight * dpi.DpiScaleY), dpi.PixelsPerInchX, dpi.PixelsPerInchY, PixelFormats.Pbgra32);
-            image.Render(surface); var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(image));
+            image.Render(window); var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(image));
             using var stream = File.Create(Path.Combine(root, name + ".png")); encoder.Save(stream);
         }
         string Settings() => JsonSerializer.Serialize((AssetSettings)Call("ReadSettings")!);
