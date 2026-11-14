@@ -51,17 +51,25 @@ public static class Palette
         }
         return Normalize(colors);
     }
-    public static async Task<Rgb[]> LoadNative(string path,string aseprite)
+    public static async Task<Rgb[]> LoadNative(string path,string aseprite,string? temporaryRoot=null)
     {
         if(!File.Exists(aseprite))throw new FileNotFoundException("Aseprite was not found. Set PIXELFORGE_ASEPRITE to its executable path.",aseprite);
-        var temp=Path.Combine(Path.GetTempPath(),"PixelForge-palette-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(temp);
+        var temp=Path.Combine(temporaryRoot??Path.GetTempPath(),"PixelForge-palette-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(temp);
         var script=Path.Combine(temp,"palette.lua");var data=Path.Combine(temp,"palette.txt");
+        try
+        {
         static string Q(string p)=>"\""+p.Replace("\\","/").Replace("\"","\\\"").Replace("\n","\\n").Replace("\r","\\r")+"\"";
         await File.WriteAllTextAsync(script,$"local s=app.open({Q(Path.GetFullPath(path))})\nassert(s,'Cannot open native palette source')\nlocal f=io.open({Q(data)},'w')\nlocal p=s.palettes[1]\nfor i=0,#p-1 do local c=p:getColor(i); f:write(string.format('#%02X%02X%02X\\n',c.red,c.green,c.blue)) end\nf:close()\n");
         await Toolchain.Run(aseprite,["--batch","--script",script],Path.Combine(temp,"aseprite.log"));
         var colors=File.ReadAllLines(data).Select(ParseColor).ToArray();
         if(colors.Length==0||colors.Length>MaximumColors)throw new InvalidDataException($"The native project must contain 1–{MaximumColors} palette entries. Export a smaller approved palette first.");
         return colors;
+        }
+        finally
+        {
+            foreach(string file in new[]{script,data,Path.Combine(temp,"aseprite.log")})try{File.Delete(file);}catch(Exception e)when(e is IOException or UnauthorizedAccessException){}
+            try{Directory.Delete(temp,false);}catch(Exception e)when(e is IOException or UnauthorizedAccessException){}
+        }
     }
     // Neutral starter palette. This is not the user's Hollow Core palette.
     public static Rgb[] Default { get; } = new[] { "#171923", "#303442", "#505563", "#747D86", "#A5AFB0", "#DFE4D8", "#30251F", "#50392B", "#795438", "#A77749", "#D1A46A", "#E9CE94", "#253C36", "#41634D", "#73905A", "#A2B879", "#423349", "#765060", "#AE6C65", "#DA9A80", "#263E55", "#466781", "#739BA6", "#AFCDD0" }.Select(ParseColor).ToArray();

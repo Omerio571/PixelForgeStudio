@@ -2,6 +2,28 @@
 
 Meaningful development changes, newest first. Historical entries follow saved versioned source/documentation and verification records; no historical release dates are assumed.
 
+## v0.3.4 — Workflow and UI cleanup
+
+- Exact zero framing padding in slider/numeric modes, including fully occupied terrain tiles and inward canvas-edge outlines.
+- Windows distribution bundles the application/runtime into PixelForge Studio.exe, with external bridge scripts; stable current build, releases directory and automatic staging cleanup.
+
+### Added
+- Independent persistent directories for models, shared settings load/save, PNG, spritesheet, palette, native, frame and saved-render dialogs.
+- Compact, remembered Manage Colors section with selected HEX copying and removal confirmation.
+- Visual outline swatch/palette picker, RGB picker, editable HEX and explicit approval of custom colors in the strict palette.
+- Leased temporary render sessions, normal-close/stale-session cleanup, protected changed/input files and permanent preservation of favorites/editable renders.
+
+### Changed
+- Mutually exclusive remembered Checkerboard/Ground Preview segments; dependent controls collapse without resetting values.
+- Inspect Animation Range sits beside playback; primary bottom-left actions are Save Current PNG, Save Spritesheet and Open in Aseprite.
+- Generating no longer permanently saves to Documents. Native editing first offers Library preservation; advanced exports remain available.
+
+### Fixed
+- Temporary history is not persisted across sessions. Other live instances, explicit exports, source inputs and saved edits are excluded from cleanup.
+- Palette-import and spritesheet-metadata helper files are cleaned without touching their sources or saved exports.
+
+Rendering, palette mapping, camera, outlines, highlights and animation-generation algorithms are unchanged. See release verification for tested scope and conservative recovery retention.
+
 ## v0.3.3 — Grouped silhouettes and stable shadow fit
 
 ### Added

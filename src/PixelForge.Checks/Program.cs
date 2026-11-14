@@ -2,6 +2,12 @@ using System.IO;
 using System.Security.Cryptography;
 using PixelForge.Core;
 
+if(args.Length>0&&args[0]=="--padding") { await PaddingChecks.Run(args.Length>1?args[1]:"outputs/padding"); return; }
+
+if(args.Length>0&&args[0]=="--session-orphan") { var orphan=new RenderSession(args[1]);File.WriteAllText(Path.Combine(orphan.DirectoryPath,"registered.dat"),"application-owned");orphan.Snapshot();Environment.Exit(0); }
+
+if(args.Length>0&&args[0]=="--workflow") { await WorkflowChecks.Run(args[1],args.Length>2?args[2]:"outputs/v034"); return; }
+
 if(args.Length>0&&args[0]=="--v033") { await V033Checks.Run(args.Length>1?args[1]:"-",args.Length>2?args[2]:"outputs/v033"); return; }
 
 if(args.Length>0&&args[0]=="--shadow-probe") { await GroupShadowChecks.Probe(args[1],args[2]); return; }

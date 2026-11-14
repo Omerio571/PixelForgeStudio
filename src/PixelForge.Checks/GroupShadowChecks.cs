@@ -175,7 +175,7 @@ internal static class GroupShadowChecks
             var box=(NumericSlider)window.FindName("GroundSoftnessInput");box.NumericMode=true;
             var s=(AssetSettings)read.Invoke(window,null)!;
             Check(s.GroundShadowSoftness==precise.GroundShadowSoftness&&s.Padding==precise.Padding&&s.PixelsPerUnit==precise.PixelsPerUnit,"settings extraction does not round displayed source precision");
-            Check(((TextBox)window.FindName("PaddingInput")).Text=="0.08"&&((TextBox)window.FindName("PixelsPerUnitInput")).Text=="16.51","ordinary fractional fields also show clean two-decimal values");
+            Check(((NumericSlider)window.FindName("PaddingInput")).Editor.Text=="0.08"&&((TextBox)window.FindName("PixelsPerUnitInput")).Text=="16.51","ordinary fractional fields also show clean two-decimal values");
             box.Editor.Text="0.25";Check(box.Commit(),"actual window softness numeric binding commits");s=(AssetSettings)read.Invoke(window,null)!;
             Check(s.GroundShadowSoftness==.25&&s.GroundShadowStrength==precise.GroundShadowStrength,"softness UI binding changes softness only, preserving strength");window.Close();
             var reopened=new MainWindow();var restored=(AssetSettings)read.Invoke(reopened,null)!;

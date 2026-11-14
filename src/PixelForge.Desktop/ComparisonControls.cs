@@ -24,7 +24,7 @@ public partial class MainWindow
     private Point panOffsets;
     private IEnumerable<NumericSlider> NumericControls(bool includeDivider=false)
     {
-        foreach(var c in new[]{LightAzimuthInput,LightElevationInput,LightIntensityInput,AmbientInput,ShadowInput,GroundStrengthInput,GroundSoftnessInput,EdgeStrengthInput})if(c is not null)yield return c;
+        foreach(var c in new[]{PaddingInput,LightAzimuthInput,LightElevationInput,LightIntensityInput,AmbientInput,ShadowInput,GroundStrengthInput,GroundSoftnessInput,EdgeStrengthInput})if(c is not null)yield return c;
         if(includeDivider&&DividerInput is not null)yield return DividerInput;
     }
     private void DimensionsChanged(object sender,TextChangedEventArgs e)=>UpdatePresetSelection();
@@ -41,7 +41,7 @@ public partial class MainWindow
     }
     private void InitializeHistory()
     {
-        try{history=new RenderHistory(Path.Combine(ProfileDirectory,"render-history.json"));RefreshHistory();}
+        try{history=new RenderHistory(Path.Combine(ProfileDirectory,"render-history.json"),path=>session?.IsManaged(path)==true);RefreshHistory();}
         catch(Exception e)when(e is IOException or JsonException or UnauthorizedAccessException or ArgumentException)
         {ComparisonInfo.Text="History could not be loaded. Existing history and artwork were left untouched. "+e.Message;}
     }
@@ -63,13 +63,13 @@ public partial class MainWindow
     private void ToggleCompare(object sender,RoutedEventArgs e)
     {
         if(ComparisonPanel.Visibility==Visibility.Visible){CloseComparison();return;}
-        PausePlayback();PreviewBorder.Visibility=Visibility.Collapsed;TimelinePanel.Visibility=Visibility.Collapsed;OutputInfo.Visibility=Visibility.Collapsed;ExportPanel.Visibility=Visibility.Collapsed;
+        PausePlayback();PlaybackTools.Visibility=Visibility.Collapsed;PreviewBorder.Visibility=Visibility.Collapsed;TimelinePanel.Visibility=Visibility.Collapsed;OutputInfo.Visibility=Visibility.Collapsed;ExportPanel.Visibility=Visibility.Collapsed;
         ComparisonPanel.Visibility=Visibility.Visible;CompareButton.Content="Back to preview";RefreshHistory();SetChecker();UpdateComparisonZoom();
     }
     private void CloseComparison()
     {
         if(ComparisonPanel is null)return;
-        ComparisonPanel.Visibility=Visibility.Collapsed;CompareButton.Content="Compare";PreviewBorder.Visibility=Visibility.Visible;
+        ComparisonPanel.Visibility=Visibility.Collapsed;PlaybackTools.Visibility=Visibility.Visible;CompareButton.Content="Compare";PreviewBorder.Visibility=Visibility.Visible;
         TimelinePanel.Visibility=playbackFrames.Length>1?Visibility.Visible:Visibility.Collapsed;OutputInfo.Visibility=Visibility.Visible;ExportPanel.Visibility=Visibility.Visible;
     }
     private void ComparisonSelectionChanged(object sender,SelectionChangedEventArgs e)
@@ -127,13 +127,16 @@ public partial class MainWindow
     private void ToggleFavorite(object sender,RoutedEventArgs e)=>Try(()=>
     {
         var entry=(((Button)sender).Tag.ToString()=="A"?RenderAInput:RenderBInput).SelectedItem as RenderEntry;
-        if(entry is null||history is null)return;history.ToggleFavorite(entry);RefreshHistory();
+        if(entry is null||history is null)return;
+        if(output?.Directory==entry.Directory&&!EnsureTimingApplied())return;
+        if(!history.IsFavorite(entry)&&session?.IsManaged(entry.Directory)==true)entry=PreserveEntry(entry);
+        history.ToggleFavorite(entry);RefreshHistory(entry.Directory);
     });
     private void AddSavedRender(object sender,RoutedEventArgs e)=>Try(()=>
     {
-        var dialog=new OpenFileDialog{Title="Add a successfully completed saved render",Filter="Generated asset|asset.output.json;asset.settings.json;*.aseprite"};if(dialog.ShowDialog()!=true)return;
+        var dialog=new OpenFileDialog{Title="Add a successfully completed saved render",Filter="Generated asset|asset.output.json;asset.settings.json;*.aseprite"};Prepare(dialog,"assets");if(dialog.ShowDialog()!=true)return;
         if(history is null)throw new IOException("History is unavailable. Check the existing render-history.json before adding renders.");
-        var output=GeneratedAsset.Open(dialog.FileName);var entry=history.AddCompleted(output);
+        var output=GeneratedAsset.Open(dialog.FileName);var entry=history.AddCompleted(output);RememberFile("assets",dialog.FileName);
         if(!history.Entries.Any(e=>e.Directory==entry.Directory))history.ToggleFavorite(entry);
         RefreshHistory(entry.Directory);
     });

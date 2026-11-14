@@ -22,18 +22,20 @@ public sealed class RenderHistory
 {
     private sealed record State(RenderEntry[] Recent,RenderEntry[] Favorites);
     private readonly string path;
+    private readonly Func<string,bool> transient;
     private readonly List<RenderEntry> recent=[];
     private readonly List<RenderEntry> favorites=[];
     public IReadOnlyList<RenderEntry> Recent=>recent;
     public IReadOnlyList<RenderEntry> Favorites=>favorites;
     public IEnumerable<RenderEntry> Entries=>recent.Concat(favorites).DistinctBy(e=>e.Directory,StringComparer.OrdinalIgnoreCase);
-    public RenderHistory(string path)
+    public RenderHistory(string path,Func<string,bool>? transient=null)
     {
         this.path=path;
+        this.transient=transient??(_=>false);
         if(!File.Exists(path))return;
         var state=JsonSerializer.Deserialize<State>(File.ReadAllText(path),AssetSettings.JsonOptions)??throw new InvalidDataException("Empty render history.");
-        recent.AddRange((state.Recent??[]).DistinctBy(e=>e.Directory,StringComparer.OrdinalIgnoreCase).Take(4));
-        favorites.AddRange((state.Favorites??[]).DistinctBy(e=>e.Directory,StringComparer.OrdinalIgnoreCase));
+        recent.AddRange((state.Recent??[]).Where(e=>!this.transient(e.Directory)).DistinctBy(e=>e.Directory,StringComparer.OrdinalIgnoreCase).Take(4));
+        favorites.AddRange((state.Favorites??[]).Where(e=>!this.transient(e.Directory)).DistinctBy(e=>e.Directory,StringComparer.OrdinalIgnoreCase));
     }
     public RenderEntry AddCompleted(ConversionOutput output)
     {
@@ -50,6 +52,13 @@ public sealed class RenderHistory
         Save();return entry;
     }
     public bool IsFavorite(RenderEntry entry)=>favorites.Any(e=>Same(e.Directory,entry.Directory));
+    public RenderEntry Relocate(RenderEntry entry,ConversionOutput saved)
+    {
+        var replacement=entry with{Directory=saved.Directory,Output=saved,Settings=AssetSettings.Load(Path.Combine(saved.Directory,"asset.settings.json"))};
+        int index=recent.FindIndex(e=>Same(e.Directory,entry.Directory));if(index>=0)recent[index]=replacement;
+        index=favorites.FindIndex(e=>Same(e.Directory,entry.Directory));if(index>=0)favorites[index]=replacement;
+        Save();return replacement;
+    }
     public void ToggleFavorite(RenderEntry entry)
     {
         if(IsFavorite(entry))favorites.RemoveAll(e=>Same(e.Directory,entry.Directory));else favorites.Add(entry);
@@ -60,7 +69,7 @@ public sealed class RenderHistory
     {
         System.IO.Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
         var staging=path+"."+Guid.NewGuid().ToString("N")+".tmp";
-        try{File.WriteAllText(staging,JsonSerializer.Serialize(new State(recent.ToArray(),favorites.ToArray()),AssetSettings.JsonOptions));File.Move(staging,path,true);}
+        try{File.WriteAllText(staging,JsonSerializer.Serialize(new State(recent.Where(e=>!transient(e.Directory)).ToArray(),favorites.Where(e=>!transient(e.Directory)).ToArray()),AssetSettings.JsonOptions));File.Move(staging,path,true);}
         finally{if(File.Exists(staging))File.Delete(staging);}
     }
 }

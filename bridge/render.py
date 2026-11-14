@@ -1,6 +1,7 @@
 """Static/animated Blender worker. Source geometry and materials are never saved."""
 import bpy, sys, json, math, os
 from mathutils import Vector, Matrix
+sys.dont_write_bytecode = True  # Keep installed integration resources read-only.
 sys.path.insert(0,os.path.dirname(__file__))
 from studio import snapshot, discard, material_info, matte, emission_material, assign, render, ground_passes
 

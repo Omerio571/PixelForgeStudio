@@ -28,9 +28,9 @@ public static class AssetExport
         // Match the user-selected PNG filename in its companion metadata.
         var json=System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(output.Metadata))!;
         json["image"]=Path.GetFileName(destination);
-        var temporary=Path.Combine(Path.GetTempPath(),"PixelForge-sheet-"+Guid.NewGuid().ToString("N")+".json");
-        File.WriteAllText(temporary,json.ToJsonString(AssetSettings.JsonOptions));
-        Copy(temporary,Path.ChangeExtension(destination,"json"));
+        var temporary=Path.Combine(Path.GetDirectoryName(Path.GetFullPath(destination))!,".pixelforge-sheet-"+Guid.NewGuid().ToString("N")+".tmp");
+        try{File.WriteAllText(temporary,json.ToJsonString(AssetSettings.JsonOptions));Copy(temporary,Path.ChangeExtension(destination,"json"));}
+        finally{try{File.Delete(temporary);}catch(Exception e)when(e is IOException or UnauthorizedAccessException){}}
     }
     public static string SaveFrames(ConversionOutput output,string selectedDirectory)
     {

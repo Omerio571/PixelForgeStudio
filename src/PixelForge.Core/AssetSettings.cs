@@ -50,7 +50,7 @@ public sealed record AssetSettings
     {
         if (Width is < 1 or > 2048 || Height is < 1 or > 2048) throw new ArgumentException("Width and height must each be 1–2048 pixels.");
         if (SamplesPerPixel is not (1 or 3)) throw new ArgumentException("Sampling must be 1 (direct) or 3 (coverage).");
-        if (!double.IsFinite(Padding) || Padding < .02 || Padding > .4) throw new ArgumentException("Padding must be between 0.02 and 0.4.");
+        if (!double.IsFinite(Padding) || Padding < 0 || Padding > .4) throw new ArgumentException("Padding must be between 0 and 0.4.");
         if (!double.IsFinite(PixelsPerUnit) || PixelsPerUnit <= 0 || PixelsPerUnit > 2048) throw new ArgumentException("Pixels per unit must be greater than zero and at most 2048.");
         if (!Enum.IsDefined(View) || !Enum.IsDefined(Projection)) throw new ArgumentException("Unknown camera or projection.");
         if (!Enum.IsDefined(FitBounds) || !Enum.IsDefined(GroupedOutlines)) throw new ArgumentException("Unknown fit-bounds or grouped-outline mode.");

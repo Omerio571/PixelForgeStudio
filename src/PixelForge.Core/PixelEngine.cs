@@ -94,7 +94,7 @@ public static class PixelEngine
         if(image.Width!=settings.Width||image.Height!=settings.Height)throw new InvalidDataException("Wrong output dimensions.");
         var allowed=settings.Colors.Select(Palette.ParseColor).Select(c=>c.Packed).ToHashSet();
         for(int p=0;p<image.Pixels.Length;p+=4) { if(image.Pixels[p+3] is not (0 or 255))throw new InvalidDataException("Non-binary alpha."); if(image.Pixels[p+3]==255&&!allowed.Contains(ColorAt(image.Pixels,p)))throw new InvalidDataException("Color outside approved palette."); }
-        if(!Enumerable.Range(0,image.Width*image.Height).Any(i=>image.Pixels[i*4+3]==0))throw new InvalidDataException("Output has no transparent background. Increase padding.");
+        if(settings.Padding>0&&!Enumerable.Range(0,image.Width*image.Height).Any(i=>image.Pixels[i*4+3]==0))throw new InvalidDataException("Output has no transparent background. Increase padding.");
     }
     private static (double L,double A,double B) Lab(double r,double g,double b)
     {
