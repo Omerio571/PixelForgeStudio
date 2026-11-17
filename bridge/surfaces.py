@@ -1,5 +1,5 @@
 """Optional world-space surface data. Never changes the studio or beauty render."""
-import json, os
+import json, os, struct
 from collections import Counter
 from mathutils import Vector
 from mathutils.bvhtree import BVHTree
@@ -33,6 +33,9 @@ def capture(scene, camera, snapshots, assembly, ids, light, job, directory):
     epsilon = max(pixel_world*1e-4,1e-7)
     samples = job['SamplesPerPixel']
     pixels = []
+    dynamic = job.get('DynamicLighting',False)
+    normal_data = bytearray()
+    undo_presentation = assembly.to_3x3().transposed()
     for y in range(job['Height']):
         for x in range(job['Width']):
             hits = []
@@ -46,8 +49,19 @@ def capture(scene, camera, snapshots, assembly, ids, light, job, directory):
                         code,metal,rough,normal = descriptions[index]
                         if normal.dot(ray)>0: normal=-normal
                         # Key visibility is geometry-based, not brightness inferred from the beauty PNG.
-                        blocked = job['CastShadows'] and tree.ray_cast(point+normal*epsilon+light*epsilon,light)[0] is not None
+                        blocked = not dynamic and job['CastShadows'] and tree.ray_cast(point+normal*epsilon+light*epsilon,light)[0] is not None
                         hits.append((code,normal,depth,metal,rough,0.0 if blocked else 1.0))
+            if dynamic:
+                # Keep the nearest facet for each visible object. The pixel converter
+                # selects which object contributes; never blend across object IDs.
+                nearest = {}
+                for hit in hits:
+                    if hit[0] not in nearest or hit[2]<nearest[hit[0]][2]:
+                        nearest[hit[0]] = hit
+                normal_data.append(len(nearest))
+                for code,normal,*_ in nearest.values():
+                    world = (undo_presentation @ normal).normalized()
+                    normal_data.extend(struct.pack('<I3f',code,*world))
             if len(hits)*2 < samples*samples:
                 pixels.append(None);continue
             code = sorted(Counter(h[0] for h in hits).items(),key=lambda p:(-p[1],p[0]))[0][0]
@@ -59,6 +73,9 @@ def capture(scene, camera, snapshots, assembly, ids, light, job, directory):
                            round(sum(h[3] for h in chosen)/count,4),
                            round(sum(h[4] for h in chosen)/count,4),
                            round(sum(h[5] for h in chosen)/count,4)])
+    if dynamic:
+        with open(os.path.join(directory,'normals.bin'),'wb') as stream:
+            stream.write(normal_data)
     with open(os.path.join(directory,'surfaces.json'),'w') as stream:
         json.dump({'width':job['Width'],'height':job['Height'],'worldUnitsPerPixel':pixel_world,
                    'light':list(light),'pixels':pixels},stream,separators=(',',':'))

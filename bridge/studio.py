@@ -46,6 +46,12 @@ def matte(info, job):
     material.use_nodes = True
     tree = material.node_tree
     tree.nodes.clear()
+    if job.get('DynamicLighting',False):
+        emission = tree.nodes.new('ShaderNodeEmission')
+        emission.inputs['Color'].default_value = info['color']
+        output = tree.nodes.new('ShaderNodeOutputMaterial')
+        tree.links.new(emission.outputs[0],output.inputs['Surface'])
+        return material
     diffuse = tree.nodes.new('ShaderNodeBsdfDiffuse')
     diffuse.inputs['Color'].default_value = info['color']
     diffuse.inputs['Roughness'].default_value = 1

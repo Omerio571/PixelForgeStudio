@@ -7,6 +7,7 @@ from studio import snapshot, discard, material_info, matte, emission_material, a
 
 job = json.load(open(sys.argv[sys.argv.index('--')+1],encoding='utf-8-sig'))
 out = job['output']
+dynamic = job.get('DynamicLighting', False)
 os.makedirs(out,exist_ok=True)
 def fail(message):
     json.dump({'message':message},open(os.path.join(out,'error.json'),'w'))
@@ -76,10 +77,10 @@ elif view not in azimuths:
 basis = orientation.to_matrix()
 az,el = math.radians(job['LightAzimuth']),math.radians(job['LightElevation'])
 world_light = basis @ Vector((math.cos(el)*math.cos(az),math.cos(el)*math.sin(az),math.sin(el)))
-shadow_enabled = job['GroundShadows'] and direction.z>.01 and world_light.z>.05
+shadow_enabled = not dynamic and job['GroundShadows'] and direction.z>.01 and world_light.z>.05
 include_shadow_bounds = job.get('FitBounds','ObjectOnly')=='ObjectAndGroundShadow'
 warnings = []
-if job['GroundShadows'] and not shadow_enabled:
+if job['GroundShadows'] and not shadow_enabled and not dynamic:
     warnings.append('Ground shadows need a camera and light above the ground plane. They are omitted for this view/light; object lighting is unchanged.')
 # Pass one: union all evaluated motion. Store only bounds, never all frame meshes.
 lo = Vector((float('inf'),)*3)
@@ -199,7 +200,7 @@ for index,frame in enumerate(frames):
     directory = out if not job['Animation'] else os.path.join(out,f'frame-{index:04d}')
     os.makedirs(directory,exist_ok=True)
     render(scene,os.path.join(directory,'render.png'))
-    if (job.get('Outlines',False) and job.get('OutlineType')=='Selective') or (job.get('EdgeHighlights',False) and job.get('EdgeHighlightStrength',.3)>0):
+    if dynamic or (job.get('Outlines',False) and job.get('OutlineType')=='Selective') or (job.get('EdgeHighlights',False) and job.get('EdgeHighlightStrength',.3)>0):
         from surfaces import capture
         progress(f'Capturing evaluated edge geometry {index+1} of {len(frames)}')
         capture(scene,camera,snapshots,assembly,ids,world_light,job,directory)
@@ -225,4 +226,5 @@ for index,frame in enumerate(frames):
     discard(snapshots)
     for material in local_materials:
         if material.users==0:bpy.data.materials.remove(material)
-json.dump({'frames':manifest,'ground_pivot':list(pivot),'ortho_scale':scale,'shared_camera':True,'elevation_degrees':math.degrees(elevation)},open(os.path.join(out,'frames.json'),'w'),indent=2)
+json.dump({'frames':manifest,'ground_pivot':list(pivot),'ortho_scale':scale,'shared_camera':True,'camera_to_world':[list(row) for row in assembly.to_3x3().transposed() @ basis],
+           'presentation_yaw_degrees':math.degrees(turn),'elevation_degrees':math.degrees(elevation)},open(os.path.join(out,'frames.json'),'w'),indent=2)

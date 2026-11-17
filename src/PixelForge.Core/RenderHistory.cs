@@ -14,7 +14,7 @@ public sealed record RenderEntry(string Directory,string AssetName,DateTimeOffse
             return null;
         }
     }
-    public string Label=>$"{AssetName} · {Completed.ToLocalTime():MM-dd HH:mm:ss} · {Settings.Width}×{Settings.Height} · {Settings.View}"+(UnavailableReason is null?"":" · unavailable");
+    public string Label=>$"{AssetName} · {Completed.ToLocalTime():MM-dd HH:mm:ss} · {Settings.Width}×{Settings.Height} · {(Settings.Camera is {} camera?$"{camera.Family} {camera.Direction}":Settings.View.ToString())} · {(Settings.DynamicLighting?"Dynamic":"Baked")}"+(UnavailableReason is null?"":" · unavailable");
 }
 
 // A reference list only: rotation never deletes or copies any generated artwork.

@@ -60,6 +60,7 @@ public partial class MainWindow
         {
             using var stream=File.OpenRead(frame.Png);var bitmap=new BitmapImage();bitmap.BeginInit();bitmap.CacheOption=BitmapCacheOption.OnLoad;bitmap.StreamSource=stream;bitmap.EndInit();bitmap.Freeze();return bitmap;
         }).ToArray();
+        LoadNormalPreview(generated);
         playback=new PlaybackTimeline(generated.Frames.Select(f=>f.DurationMs).ToArray());
         TimelinePanel.Visibility=playbackFrames.Length>1?Visibility.Visible:Visibility.Collapsed;
         updatingTimeline=true;TimelineInput.Maximum=Math.Max(1,playbackFrames.Length-1);TimelineInput.Value=0;updatingTimeline=false;ShowPlaybackFrame();
@@ -67,7 +68,7 @@ public partial class MainWindow
     private void ShowPlaybackFrame()
     {
         if(playback is null||playbackFrames.Length==0)return;
-        PreviewImage.Source=playbackFrames[playback.CurrentFrame];
+        PreviewImage.Source=LightingMapInput.SelectedIndex==1&&normalPreview.Length>0?normalPreview[playback.CurrentFrame]:playbackFrames[playback.CurrentFrame];
         updatingTimeline=true;TimelineInput.Value=playback.CurrentFrame;updatingTimeline=false;
         FrameInfo.Text=$"{playback.CurrentFrame+1} / {playbackFrames.Length} · {playbackFps} FPS · Blender {output!.Frames[playback.CurrentFrame].SourceFrame}";
         DurationInfo.Text=$"{playback.TotalDurationMs/1000.0:0.##} s total";
@@ -116,7 +117,8 @@ public partial class MainWindow
             if(entry is not null)history!.Relocate(entry,output);
             TrackPreserved(previous,output);RefreshHistory();
             if(pendingTiming)PreviewFpsInput.Text=pendingFps.ToString();
-            OutputInfo.Text=$"{settings.Width} × {settings.Height} · {output.Frames.Length} saved native frame(s) · palette/alpha validated";
+            OutputInfo.Text=$"{settings.Width} × {settings.Height} · {output.Frames.Length} saved native frame(s) · palette/alpha validated"
+                +(output.Warnings.Length>0?"\n"+string.Join("\n",output.Warnings):"");
             Status.Text="Saved Aseprite edits loaded. Preview and all PNG/sheet exports now include these corrections.";
         }
         catch(Exception ex){Error(ex);}

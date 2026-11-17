@@ -25,7 +25,15 @@ public static class AnimationExport
         var pivot=new { x=settings.Width*.5-shift[0].GetDouble()*settings.Width,y=settings.Height*.5+shift[1].GetDouble()*settings.Width };
         File.WriteAllText(metadata,JsonSerializer.Serialize(new
         {
-            version=1,image="asset.sheet.png",columns,rows,width=w,height=h,canvas=new{width=settings.Width,height=settings.Height},
+            version=1,image="asset.sheet.png",
+            assetName=Path.GetFileNameWithoutExtension(settings.Model),
+            lighting=frames.All(f=>f.Normal is not null)?new
+            {
+                version=1,color="asset.sheet.png",normal="asset.normal.sheet.png",normalSpace="world",
+                axes="+X East, +Y North, +Z Up",imageOrigin="top-left",channels="RGBA; RGB=(N+1)/2; alpha=color coverage",
+                sampling="nearest, linear vector data",outlines="inherit geometric normal; no separate lighting mask",
+                cameraToWorld=manifest.GetProperty("camera_to_world"),presentationYawDegrees=manifest.GetProperty("presentation_yaw_degrees")
+            }:null,columns,rows,width=w,height=h,canvas=new{width=settings.Width,height=settings.Height},
             camera=settings.Camera??CameraSelection.FromLegacy(settings.View,settings.Projection),
             cameraElevation=manifest.TryGetProperty("elevation_degrees",out var elevation)?elevation.GetDouble():(double?)null,
             frameCount=frames.Length,fps=settings.Fps,pivot,anchor=pivot,groundWorld=manifest.GetProperty("ground_pivot"),

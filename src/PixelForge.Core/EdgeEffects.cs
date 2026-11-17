@@ -31,7 +31,7 @@ public static class EdgeEffects
     public static PixelResult Apply(PixelResult source,AssetSettings settings,SurfaceFrame? geometry)
     {
         bool selective=settings.Outlines&&settings.OutlineType==OutlineStyle.Selective;
-        bool highlights=settings.EdgeHighlights&&settings.EdgeHighlightStrength>0;
+        bool highlights=!settings.DynamicLighting&&settings.EdgeHighlights&&settings.EdgeHighlightStrength>0;
         if(!selective&&!highlights)return source;
         if(geometry is null)throw new InvalidDataException("Selective outlines and highlights require evaluated Blender surface data. Generate a new asset; saved artwork is never modified.");
         int w=source.Image.Width,h=source.Image.Height,size=w*h;
@@ -42,7 +42,7 @@ public static class EdgeEffects
         var palette=settings.Colors.Select(Palette.ParseColor).ToArray();
         for(int n=0;n<size;n++)
             if(original.Pixels[n*4+3]!=0&&geometry.Pixels[n] is {} p&&p.ObjectId==source.ObjectIds[n])
-            {valid[n]=true;facing[n]=Math.Max(0,Vector3.Dot(p.Normal,geometry.Light))*p.KeyVisibility;}
+            {valid[n]=true;facing[n]=settings.DynamicLighting?0:Math.Max(0,Vector3.Dot(p.Normal,geometry.Light))*p.KeyVisibility;}
         IEnumerable<int> Adjacent(int n)
         {
             int x=n%w,y=n/w;

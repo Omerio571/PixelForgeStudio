@@ -80,6 +80,7 @@ public partial class MainWindow
         if(RenderAInput is null||RenderBInput is null||ComparisonInfo is null)return;
         compareA=ReadComparison(RenderAInput.SelectedItem as RenderEntry,RenderAInfo);
         compareB=ReadComparison(RenderBInput.SelectedItem as RenderEntry,RenderBInfo);
+        SetCompareMapAvailability();
         FavoriteA.Content=RenderAInput.SelectedItem is RenderEntry ea&&history?.IsFavorite(ea)==true?"★":"☆";
         FavoriteB.Content=RenderBInput.SelectedItem is RenderEntry eb&&history?.IsFavorite(eb)==true?"★":"☆";
         ShowComparisonFrames();
@@ -91,35 +92,45 @@ public partial class MainWindow
         try
         {
             var output=GeneratedAsset.Open(entry.Directory);var s=entry.Settings;
-            info.Text=$"{s.Width}×{s.Height} · {s.View} · {s.Projection}\n{output.Frames.Length} frame(s) · {s.Colors.Length} palette colors · {entry.Completed.ToLocalTime():g}";
+            info.Text=$"{s.Width}×{s.Height} · {(s.Camera is {} camera?$"{camera.Family} {camera.Direction} / {camera.Perspective}":$"{s.View} / {s.Projection}")} · {(s.DynamicLighting?"Dynamic":"Baked")}\n{output.Frames.Length} frame(s) · {s.Colors.Length} palette colors · {entry.Completed.ToLocalTime():g}";
             info.ToolTip=$"{entry.Directory}\nLight {s.LightAzimuth:0.##}° / {s.LightElevation:0.##}° · key {s.LightIntensity:0.##} · ambient {s.AmbientIntensity:0.##}\nSelf shadows {s.CastShadows} · ground {s.GroundShadows} / {s.GroundShadowStrength:P0} · softness {s.GroundShadowSoftness:0.##} rad\nOutlines {s.Outlines} / {s.OutlineType} · collections {s.RespectOutlineGroups} · highlights {s.EdgeHighlights} / {s.EdgeHighlightStrength:P0}";
             return output;
         }
         catch(Exception e)when(e is IOException or JsonException or ArgumentException or UnauthorizedAccessException or InvalidOperationException)
         {info.Text="Unavailable: "+e.Message;return null;}
     }
+    private bool ComparingAlignedMaps => compareA is not null && compareA.Directory==compareB?.Directory &&
+        CompareNormalA.IsChecked!=CompareNormalB.IsChecked;
+
+    private void SetComparisonFrame(bool sideA,int index)
+    {
+        if(sideA||ComparingAlignedMaps)frameA=index;
+        if(!sideA||ComparingAlignedMaps)frameB=index;
+    }
+
     private void ShowComparisonFrames()
     {
         if(CompareFrameA is null||CompareFrameB is null)return;
+        if(ComparingAlignedMaps)frameB=frameA;
         frameA=Math.Clamp(frameA,0,Math.Max(0,(compareA?.Frames.Length??1)-1));frameB=Math.Clamp(frameB,0,Math.Max(0,(compareB?.Frames.Length??1)-1));
         updatingCompareFrame=true;CompareFrameA.Text=(frameA+1).ToString();CompareFrameB.Text=(frameB+1).ToString();updatingCompareFrame=false;
         try
         {
-            LoadComparisonImage(compareA,frameA,CompareImageA,ref imagePathA);LoadComparisonImage(compareB,frameB,CompareImageB,ref imagePathB);
+            LoadComparisonImage(compareA,frameA,CompareImageA,ref imagePathA,CompareNormalA.IsChecked==true);LoadComparisonImage(compareB,frameB,CompareImageB,ref imagePathB,CompareNormalB.IsChecked==true);
             if(compareA is null||compareB is null){comparisonLayout=null;ComparisonCanvas.Visibility=Visibility.Collapsed;ComparisonInfo.Text="Choose two available saved renders. Add saved render can import a previously completed output. History keeps four recent renders plus favorites; files are never deleted.";return;}
             var a=(BitmapSource)CompareImageA.Source;var b=(BitmapSource)CompareImageB.Source;
             comparisonLayout=ComparisonLayout.Create(a.PixelWidth,a.PixelHeight,b.PixelWidth,b.PixelHeight,ComparisonLayout.ReadAnchor(compareA.Metadata),ComparisonLayout.ReadAnchor(compareB.Metadata));
             ComparisonCanvas.Visibility=Visibility.Visible;
             long elapsedA=compareA.Frames.Take(frameA).Sum(f=>(long)f.DurationMs),elapsedB=compareB.Frames.Take(frameB).Sum(f=>(long)f.DurationMs);
-            ComparisonInfo.Text=$"A {frameA+1}/{compareA.Frames.Length} · source {compareA.Frames[frameA].SourceFrame} · {elapsedA} ms   |   B {frameB+1}/{compareB.Frames.Length} · source {compareB.Frames[frameB].SourceFrame} · {elapsedB} ms\n"+(comparisonLayout.GroundAligned?"Shared ground-anchor alignment.":"Centered canvases (shared ground anchors unavailable).")+" Frames are independent. Middle-drag or scrollbars pan; zoom is shared. Comparison is read-only.";
+            ComparisonInfo.Text=$"A {frameA+1}/{compareA.Frames.Length} · source {compareA.Frames[frameA].SourceFrame} · {elapsedA} ms   |   B {frameB+1}/{compareB.Frames.Length} · source {compareB.Frames[frameB].SourceFrame} · {elapsedB} ms\n"+(comparisonLayout.GroundAligned?"Shared ground-anchor alignment.":"Centered canvases (shared ground anchors unavailable).")+(ComparingAlignedMaps?" Frames are linked.":" Frames are independent.")+" Middle-drag or scrollbars pan; zoom is shared. Comparison is read-only.";
             UpdateComparisonZoom();
         }
         catch(Exception e)when(e is IOException or NotSupportedException or ArgumentException or InvalidOperationException or UnauthorizedAccessException)
         {comparisonLayout=null;ComparisonCanvas.Visibility=Visibility.Collapsed;ComparisonInfo.Text="Saved preview unavailable: "+e.Message;}
     }
-    private static void LoadComparisonImage(ConversionOutput? output,int index,Image image,ref string? loadedPath)
+    private static void LoadComparisonImage(ConversionOutput? output,int index,Image image,ref string? loadedPath,bool normal)
     {
-        string? path=output?.Frames[index].Png;
+        string? path=normal?output?.Frames[index].Normal:output?.Frames[index].Png;
         if(path is null){image.Source=null;loadedPath=null;return;}
         var info=new FileInfo(path);string key=path+"|"+info.LastWriteTimeUtc.Ticks+"|"+info.Length;
         if(key==loadedPath)return;
@@ -175,7 +186,7 @@ public partial class MainWindow
         if(updatingCompareFrame)return true;bool a=box==CompareFrameA;var output=a?compareA:compareB;
         if(output is null)return true;
         if(!int.TryParse(box.Text,out int frame)||frame<1||frame>output.Frames.Length){ComparisonInfo.Text=$"Enter a frame from 1–{output.Frames.Length}. Last valid frame remains visible; Escape cancels.";box.SetResourceReference(Control.BorderBrushProperty,"Error");return false;}
-        box.ClearValue(Control.BorderBrushProperty);if(a)frameA=frame-1;else frameB=frame-1;ShowComparisonFrames();return true;
+        box.ClearValue(Control.BorderBrushProperty);SetComparisonFrame(a,frame-1);ShowComparisonFrames();return true;
     }
     private void ComparisonFrameKey(object sender,KeyEventArgs e)
     {
@@ -184,7 +195,7 @@ public partial class MainWindow
     }
     private void StepComparison(object sender,RoutedEventArgs e)
     {
-        var parts=((Button)sender).Tag.ToString()!.Split(',');int delta=int.Parse(parts[1]);if(parts[0]=="A")frameA+=delta;else frameB+=delta;ShowComparisonFrames();
+        var parts=((Button)sender).Tag.ToString()!.Split(',');int delta=int.Parse(parts[1]);bool sideA=parts[0]=="A";SetComparisonFrame(sideA,(sideA?frameA:frameB)+delta);ShowComparisonFrames();
     }
     private void MatchSourceFrame(object sender,RoutedEventArgs e)
     {

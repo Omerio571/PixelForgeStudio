@@ -191,6 +191,7 @@ internal static class ModernUiChecks
         await Layout();
         Check(!Find<ComboBox>("ViewInput").IsEnabled && Find<StackPanel>("CameraElevationPanel").IsVisible,
             "batch disables direction selection and tilted Top exposes elevation");
+        Find<CheckBox>("DynamicLightingInput").IsChecked=true;
         var cameraSettings=(AssetSettings)Call("ReadSettings")!;
         Check(cameraSettings.Camera?.Elevation==65 && cameraSettings.RenderAllDirections,"camera inputs reach asset settings");
         Call("Generate",window,events);
@@ -210,6 +211,25 @@ internal static class ModernUiChecks
               Directory.GetFiles(batchExport,"frame-*.png",SearchOption.AllDirectories).Length==8 &&
               File.Exists(Path.Combine(batchExport,"directions.json")),
             "directional animation exports contain named native documents, sheets, metadata and every frame");
+        Check(west.NormalSheet is not null && Find<WrapPanel>("LightingMapTools").Visibility==Visibility.Visible,
+            "dynamic animation shows lighting map commands");
+        Find<Slider>("TimelineInput").Value=1;
+        var colorMap=Find<Image>("PreviewImage").Source;
+        Find<ComboBox>("LightingMapInput").SelectedIndex=1;
+        Check(!ReferenceEquals(colorMap,Find<Image>("PreviewImage").Source) && Find<Slider>("TimelineInput").Value==1,
+            "normal map switching keeps the selected animation frame");
+        Call("CompareLightingMaps",window,events);
+        Check(Find<Border>("ComparisonPanel").IsVisible &&
+            Find<ComboBox>("CompareModeInput").SelectedIndex==1 &&
+            Find<CheckBox>("CompareNormalB").IsChecked==true &&
+            Find<TextBox>("CompareFrameA").Text=="2"&&Find<TextBox>("CompareFrameB").Text=="2" &&
+            !ReferenceEquals(Find<Image>("CompareImageA").Source,Find<Image>("CompareImageB").Source),
+            "Compare maps opens the same frame side by side with separate color and normal textures");
+        Call("StepComparison",new Button {Tag="B,-1"},events);
+        Check(Find<TextBox>("CompareFrameA").Text=="1"&&Find<TextBox>("CompareFrameB").Text=="1",
+            "stepping either map keeps both maps on the same pose");
+        await Layout();Capture("lighting-maps");
+        Call("CloseComparison");
         await Layout();Capture("camera-dark");
         Find<RadioButton>("LightTheme").IsChecked=true;await Layout();Capture("camera-light");
         Call("SavePreferences");
@@ -221,7 +241,7 @@ internal static class ModernUiChecks
         window.Close();
         window=new MainWindow();window.Show();await Layout();
         var restored=(AssetSettings)Call("ReadSettings")!;
-        Check(restored.Camera==cameraSettings.Camera && restored.RenderAllDirections,
+        Check(restored.Camera==cameraSettings.Camera && restored.RenderAllDirections && restored.DynamicLighting,
             "camera family, perspective, elevation and batch mode persist across restart");
         window.Close();
         File.WriteAllText(Path.Combine(root, "results.json"), JsonSerializer.Serialize(new { checks, still = still.Directory, animation = animation.Directory, dpi = VisualTreeHelper.GetDpi(window).DpiScaleX }));

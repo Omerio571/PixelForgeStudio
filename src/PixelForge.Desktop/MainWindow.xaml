@@ -111,6 +111,7 @@
                   </WrapPanel>
                 </StackPanel>
               </Expander>
+              <CheckBox x:Name="DynamicLightingInput" Content="Dynamic Lighting Ready" ToolTip="Export neutral material colors and world-space normals. Directional highlights and baked shadows are omitted in this mode." />
               <Expander x:Name="CameraSection" Header="Camera and Scale" IsExpanded="true">
                 <StackPanel Margin="0,0,4,0">
                   <local:ResponsivePanel MinimumItemWidth="168">
@@ -321,6 +322,7 @@
                   <Button x:Name="FavoriteA" Content="☆" DockPanel.Dock="Right" HorizontalAlignment="Right" Padding="8,2" Tag="A" Click="ToggleFavorite" ToolTip="Permanently preserve this editable render in the Library. Removing a favorite does not delete artwork." />
                 </DockPanel>
                 <ComboBox x:Name="RenderAInput" DisplayMemberPath="Label" SelectionChanged="ComparisonSelectionChanged" />
+                <CheckBox x:Name="CompareNormalA" Content="Normal map" Visibility="Collapsed" Checked="CompareMapChanged" Unchecked="CompareMapChanged" />
                 <TextBlock x:Name="RenderAInfo" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Muted}" />
                 <WrapPanel>
                   <Button Content="◀" Tag="A,-1" Click="StepComparison" Padding="8,3" />
@@ -334,6 +336,7 @@
                   <Button x:Name="FavoriteB" Content="☆" DockPanel.Dock="Right" HorizontalAlignment="Right" Padding="8,2" Tag="B" Click="ToggleFavorite" ToolTip="Permanently preserve this editable render in the Library. Removing a favorite does not delete artwork." />
                 </DockPanel>
                 <ComboBox x:Name="RenderBInput" DisplayMemberPath="Label" SelectionChanged="ComparisonSelectionChanged" />
+                <CheckBox x:Name="CompareNormalB" Content="Normal map" Visibility="Collapsed" Checked="CompareMapChanged" Unchecked="CompareMapChanged" />
                 <TextBlock x:Name="RenderBInfo" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Muted}" />
                 <WrapPanel>
                   <Button Content="◀" Tag="B,-1" Click="StepComparison" Padding="8,3" />
@@ -388,6 +391,14 @@
           </Grid>
         </Border>
         <StackPanel x:Name="PlaybackTools" Grid.Row="2">
+          <WrapPanel x:Name="LightingMapTools" Visibility="Collapsed">
+            <ComboBox x:Name="LightingMapInput" SelectedIndex="0" SelectionChanged="LightingMapChanged" Width="130" AutomationProperties.Name="Preview map">
+              <ComboBoxItem Content="Base color" />
+              <ComboBoxItem Content="Normal map" />
+            </ComboBox>
+            <Button Content="Compare maps" Click="CompareLightingMaps" />
+            <Button Content="Save lighting asset" Click="SaveLightingAsset" />
+          </WrapPanel>
           <StackPanel x:Name="TimelinePanel" Visibility="Collapsed" Margin="0,5">
             <Slider x:Name="TimelineInput" Minimum="0" Maximum="1" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="ScrubFrame" />
             <WrapPanel VerticalAlignment="Center">

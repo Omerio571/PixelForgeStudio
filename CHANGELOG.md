@@ -4,6 +4,12 @@ Meaningful development changes, newest first. Historical entries follow saved ve
 
 ## v0.4.0 — Modern desktop workspace
 
+### Dynamic lighting assets
+
+- Added an optional neutral material pass and aligned world-space normal maps for static sprites and animations.
+- Added playback map switching, side-by-side map comparison, and versioned lighting asset export.
+- Added a standalone raylib validator and documented the world-space convention and saved-edit behavior.
+
 ### Camera perspectives
 
 - Added Isometric, Top, Bottom and Side families with direction-specific orthographic presets and adjustable 40–85° Top-Down 3/4.

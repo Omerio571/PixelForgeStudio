@@ -3,11 +3,15 @@ using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace PixelForge.Core;
-public sealed record FrameOutput(int SourceFrame,string Png,int DurationMs);
+public sealed record FrameOutput(int SourceFrame,string Png,int DurationMs)
+{
+    public string? Normal { get; init; }
+}
 public sealed record ConversionOutput(string Directory,string Png,string Aseprite,string Preview,string[] Warnings)
 {
     public FrameOutput[] Frames { get; init; } = [];
     public string? Spritesheet { get; init; }
+    public string? NormalSheet { get; init; }
     public string? Metadata { get; init; }
 }
 internal sealed record LayerImage(string Key,string Name,string Path,int Order);
@@ -122,7 +126,7 @@ public sealed class ConversionPipeline(Toolchain tools)
             layerCompositeMatches=true,generatedLayers=layerCount,sharedCamera=true,warnings,artisticApproval="Requires human review"
         },AssetSettings.JsonOptions),cancellation);
         progress?.Report($"Ready · {outputs.Length} validated frame(s). Review motion and pixels before approving.");
-        return new(directory,png,ase,preview,warnings.ToArray()){Frames=outputs,Spritesheet=export.Sheet,Metadata=export.Metadata};
+        return new(directory,png,ase,preview,warnings.ToArray()){Frames=outputs,Spritesheet=export.Sheet,Metadata=export.Metadata,NormalSheet=LightingMaps.CreateAtlas(settings,directory,outputs)};
     }
 
     private async Task RunBlender(AssetSettings settings,string directory,IProgress<string>? progress,CancellationToken cancellation,double[]? sharedBounds=null,bool boundsOnly=false)
@@ -176,7 +180,13 @@ public sealed class ConversionPipeline(Toolchain tools)
         var image=GroundShadow.Composite(converted.Image,shadow);PixelEngine.Validate(image,settings);
         var png=Path.Combine(directory,"asset.png");image.Save(png);
         int duration=PlaybackTimeline.FrameDuration(index,settings.Fps);
-        return(new(new(sourceFrame,png,duration),layers.ToArray()),frameWarnings.ToArray());
+        string? normal=null;
+        if(settings.DynamicLighting)
+        {
+            normal=Path.Combine(directory,"asset.normal.png");
+            LightingMaps.CreateFrame(Path.Combine(directory,"normals.bin"),image,converted.ObjectIds).Save(normal);
+        }
+        return(new(new FrameOutput(sourceFrame,png,duration){Normal=normal},layers.ToArray()),frameWarnings.ToArray());
     }
     private static async Task<byte[]> Hash(string path){using var stream=File.OpenRead(path);return await SHA256.HashDataAsync(stream);}
 }

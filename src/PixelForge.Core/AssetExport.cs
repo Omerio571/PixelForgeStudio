@@ -28,6 +28,7 @@ public static class AssetExport
         // Match the user-selected PNG filename in its companion metadata.
         var json=System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(output.Metadata))!;
         json["image"]=Path.GetFileName(destination);
+        json.AsObject().Remove("lighting");
         var temporary=Path.Combine(Path.GetDirectoryName(Path.GetFullPath(destination))!,".pixelforge-sheet-"+Guid.NewGuid().ToString("N")+".tmp");
         try{File.WriteAllText(temporary,json.ToJsonString(AssetSettings.JsonOptions));Copy(temporary,Path.ChangeExtension(destination,"json"));}
         finally{try{File.Delete(temporary);}catch(Exception e)when(e is IOException or UnauthorizedAccessException){}}
@@ -62,6 +63,7 @@ public static class AssetExport
             SaveSpritesheet(item,Path.Combine(folder,stem+".sheet.png"));
             SaveNative(item,Path.Combine(folder,stem+".aseprite"));
             SaveFrames(item,folder,stem+".frames");
+            if(item.NormalSheet is not null)LightingMaps.Export(item,folder);
             metadata.Add(stem+".sheet.json");
         }
         File.WriteAllText(Path.Combine(folder,"directions.json"),System.Text.Json.JsonSerializer.Serialize(new { directions=metadata },AssetSettings.JsonOptions));

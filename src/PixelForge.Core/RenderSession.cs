@@ -115,7 +115,7 @@ public sealed class RenderSession : IDisposable
             if(!linked.TryGetValue(path,out string? target)){target=Path.Combine(destination,"linked-"+Guid.NewGuid().ToString("N")[..8]+"-"+Path.GetFileName(path));File.Copy(path,target,false);linked[path]=target;}
             return target;
         }
-        var required=new[]{output.Png,output.Aseprite,output.Preview,output.Spritesheet,output.Metadata}.OfType<string>().Concat(output.Frames.Select(f=>f.Png));
+        var required=new[]{output.Png,output.Aseprite,output.Preview,output.Spritesheet,output.Metadata,output.NormalSheet}.OfType<string>().Concat(output.Frames.SelectMany(f=>new[]{f.Png,f.Normal}.OfType<string>()));
         bool own=!protectedInputs&&required.All(Internal)&&original.StartsWith(DirectoryPath+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase);
         bool moved=false;
         if(own)
@@ -132,7 +132,7 @@ public sealed class RenderSession : IDisposable
         }
         string prefix=Path.GetRelativePath(DirectoryPath,original)+Path.DirectorySeparatorChar;
         if(moved)foreach(string key in registered.Keys.Where(k=>k.StartsWith(prefix,StringComparison.OrdinalIgnoreCase)).ToArray())registered.Remove(key);
-        var saved=output with{Directory=destination,Png=Map(output.Png),Aseprite=Map(output.Aseprite),Preview=Map(output.Preview),Spritesheet=output.Spritesheet is null?null:Map(output.Spritesheet),Metadata=output.Metadata is null?null:Map(output.Metadata),Frames=output.Frames.Select(f=>f with{Png=Map(f.Png)}).ToArray()};
+        var saved=output with{Directory=destination,Png=Map(output.Png),Aseprite=Map(output.Aseprite),Preview=Map(output.Preview),Spritesheet=output.Spritesheet is null?null:Map(output.Spritesheet),Metadata=output.Metadata is null?null:Map(output.Metadata),NormalSheet=output.NormalSheet is null?null:Map(output.NormalSheet),Frames=output.Frames.Select(f=>f with{Png=Map(f.Png),Normal=f.Normal is null?null:Map(f.Normal)}).ToArray()};
         GeneratedAsset.Save(saved);WriteInventory();return saved;
     }
     public void Dispose(){if(disposed)return;disposed=true;lease?.Dispose();lease=null;TryClean(DirectoryPath);}
