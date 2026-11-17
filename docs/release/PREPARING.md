@@ -11,7 +11,7 @@ From the source root with the Windows .NET 10 SDK:
 ./Build.ps1 -Check -Package
 ```
 
-Publishing prepares the local self-contained `artifacts/current/PixelForge Studio.exe` and external bridge scripts. Packaging also creates `artifacts/releases/PixelForge-Studio-v0.4.0-win-x64.zip` and its SHA-256 checksum. Neither command publishes to GitHub. The ZIP is never overwritten. Existing current builds are replaced only after their ownership inventory verifies that no user files were added or changed.
+Publishing prepares the local self-contained `artifacts/current/PixelForge Studio.exe` and external bridge scripts. Packaging also creates `artifacts/releases/PixelForge-Studio-v0.5.0-win-x64.zip` and its SHA-256 checksum. Neither command publishes to GitHub. The ZIP is never overwritten. Existing current builds are replaced only after their ownership inventory verifies that no user files were added or changed.
 
 Extract a ZIP into a new folder and verify startup, generation, saved-frame export and missing-tool messages. Testing on a development machine is not a clean-machine test.
 
@@ -33,4 +33,4 @@ The modern UI suite exercises the actual WPF dispatcher, Light/Dark persistence,
 
 Review `git status`, `git diff --check` and the source diff. Commit only tested source, documentation and intentional screenshots. Keep binaries, output assets, profiles and caches ignored. Preserve the MIT License and tool/runtime notices.
 
-Push, release tagging and GitHub publication require an explicit owner request. When preparing a release manually, attach the ZIP/checksum and use [v0.4.0 notes](v0.4.0.md), replacing relative documentation links with the repository's versioned URLs. See [verification](v0.4.0-verification.md) for this candidate's executed checks and limits.
+Push, release tagging and GitHub publication require an explicit owner request. When preparing a release manually, attach the ZIP/checksum and use [v0.5.0 notes](v0.5.0.md), replacing relative documentation links with the repository's versioned URLs. See the release notes for this candidate's verification and limits.

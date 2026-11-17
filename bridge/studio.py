@@ -46,9 +46,18 @@ def matte(info, job):
     material.use_nodes = True
     tree = material.node_tree
     tree.nodes.clear()
-    if job.get('DynamicLighting',False):
+    if job.get('DynamicLighting',False) or not job.get('StudioLighting',True):
         emission = tree.nodes.new('ShaderNodeEmission')
         emission.inputs['Color'].default_value = info['color']
+        if job.get('DynamicLighting',False):
+            ao = tree.nodes.new('ShaderNodeAmbientOcclusion')
+            ao.inputs['Color'].default_value = info['color']
+            ao.inputs['Distance'].default_value = job.get('NeutralAoDistance',.1)
+            mix = tree.nodes.new('ShaderNodeMixRGB')
+            mix.inputs[0].default_value = .16
+            mix.inputs[1].default_value = info['color']
+            tree.links.new(ao.outputs['Color'],mix.inputs[2])
+            tree.links.new(mix.outputs[0],emission.inputs['Color'])
         output = tree.nodes.new('ShaderNodeOutputMaterial')
         tree.links.new(emission.outputs[0],output.inputs['Surface'])
         return material
@@ -96,7 +105,7 @@ def ground_passes(scene, objects, light, job, directory, ground_z, radius):
     mesh.from_pydata([(-radius,-radius,ground_z),(radius,-radius,ground_z),(radius,radius,ground_z),(-radius,radius,ground_z)],[],[(0,1,2,3)])
     plane = bpy.data.objects.new('PixelForge ground receiver',mesh)
     scene.collection.objects.link(plane)
-    white = matte({'name':'receiver','color':(1,1,1,1)},dict(job,ShadowIntensity=1))
+    white = matte({'name':'receiver','color':(1,1,1,1)},dict(job,ShadowIntensity=1,StudioLighting=True,DynamicLighting=False))
     mesh.materials.append(white)
     for obj in objects:
         obj.visible_camera = False

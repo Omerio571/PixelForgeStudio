@@ -29,7 +29,9 @@ public static class AnimationExport
             assetName=Path.GetFileNameWithoutExtension(settings.Model),
             lighting=frames.All(f=>f.Normal is not null)?new
             {
-                version=1,color="asset.sheet.png",normal="asset.normal.sheet.png",normalSpace="world",
+                version=frames.All(f=>f.Emission is not null)?2:1,color="asset.sheet.png",normal="asset.normal.sheet.png",normalSpace="world",
+                emission=frames.All(f=>f.Emission is not null)?"asset.emission.sheet.png":null,
+                emissionEncoding="linear grayscale intensity; alpha=color coverage",
                 axes="+X East, +Y North, +Z Up",imageOrigin="top-left",channels="RGBA; RGB=(N+1)/2; alpha=color coverage",
                 sampling="nearest, linear vector data",outlines="inherit geometric normal; no separate lighting mask",
                 cameraToWorld=manifest.GetProperty("camera_to_world"),presentationYawDegrees=manifest.GetProperty("presentation_yaw_degrees")

@@ -27,6 +27,7 @@ public sealed record AssetSettings
     public double LightIntensity { get; init; } = 2.2;
     public double AmbientIntensity { get; init; } = .65;
     public double ShadowIntensity { get; init; } = 1;
+    public bool StudioLighting { get; init; } = true;
     public bool DynamicLighting { get; init; }
     public bool CastShadows { get; init; } = true;
     public bool GroundShadows { get; init; }

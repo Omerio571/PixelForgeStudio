@@ -68,7 +68,7 @@ public partial class MainWindow
     private void ShowPlaybackFrame()
     {
         if(playback is null||playbackFrames.Length==0)return;
-        PreviewImage.Source=LightingMapInput.SelectedIndex==1&&normalPreview.Length>0?normalPreview[playback.CurrentFrame]:playbackFrames[playback.CurrentFrame];
+        PreviewImage.Source=LightingPreview(playback.CurrentFrame);
         updatingTimeline=true;TimelineInput.Value=playback.CurrentFrame;updatingTimeline=false;
         FrameInfo.Text=$"{playback.CurrentFrame+1} / {playbackFrames.Length} · {playbackFps} FPS · Blender {output!.Frames[playback.CurrentFrame].SourceFrame}";
         DurationInfo.Text=$"{playback.TotalDurationMs/1000.0:0.##} s total";

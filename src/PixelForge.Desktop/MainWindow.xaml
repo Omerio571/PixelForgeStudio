@@ -27,7 +27,7 @@
     </Border>
     <Grid Grid.Row="1">
       <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="336" MinWidth="310" MaxWidth="460" />
+        <ColumnDefinition x:Name="SettingsWidth" Width="372" MinWidth="310" MaxWidth="460" />
         <ColumnDefinition Width="5" />
         <ColumnDefinition />
       </Grid.ColumnDefinitions>
@@ -66,6 +66,8 @@
                       <WrapPanel>
                         <Border x:Name="SelectedColorPreview" Width="24" Height="24" Margin="0,5,5,5" />
                         <TextBlock x:Name="SelectedColorHex" Text="Select a swatch" Margin="0,8,6,0" />
+                      </WrapPanel>
+                      <WrapPanel x:Name="PaletteActions">
                         <Button Content="Copy" Click="CopyColor" />
                         <Button Content="Remove" Click="RemoveColor" />
                         <Button Content="←" Click="MoveColorLeft" ToolTip="Move selected color left" />
@@ -111,7 +113,6 @@
                   </WrapPanel>
                 </StackPanel>
               </Expander>
-              <CheckBox x:Name="DynamicLightingInput" Content="Dynamic Lighting Ready" ToolTip="Export neutral material colors and world-space normals. Directional highlights and baked shadows are omitted in this mode." />
               <Expander x:Name="CameraSection" Header="Camera and Scale" IsExpanded="true">
                 <StackPanel Margin="0,0,4,0">
                   <local:ResponsivePanel MinimumItemWidth="168">
@@ -129,8 +130,8 @@
                     </StackPanel>
                   </local:ResponsivePanel>
                   <StackPanel x:Name="CameraElevationPanel" Visibility="Collapsed">
-                    <TextBlock Text="Camera elevation (degrees)" />
-                    <local:NumericSlider x:Name="CameraElevationInput" Minimum="40" Maximum="85" Value="60" DecimalPlaces="1" />
+                    <TextBlock Text="{Binding Value, ElementName=CameraElevationInput, StringFormat=Camera Elevation {0:0.##}°}" />
+                    <local:NumericSlider x:Name="CameraElevationInput" Minimum="40" Maximum="85" Value="60" DecimalPlaces="2" Unit="°" ToolTip="Camera elevation above the ground plane." />
                   </StackPanel>
                   <CheckBox x:Name="AllDirectionsInput" Content="Render All Directions" Checked="AllDirectionsChanged" Unchecked="AllDirectionsChanged" />
                   <TextBlock Text="Fit bounds source" />
@@ -156,22 +157,25 @@
               </Expander>
               <Expander x:Name="LightingSection" Header="Lighting and Shadows" IsExpanded="false">
                 <StackPanel Margin="0,0,4,0">
+                  <CheckBox x:Name="DynamicLightingInput" Content="Dynamic Lighting" ToolTip="Export neutral material colors with normal and emission maps." />
+                  <CheckBox x:Name="StudioLightingInput" Checked="StudioPreviewChanged" Unchecked="StudioPreviewChanged" Content="Studio Lighting" IsChecked="True" ToolTip="Baked mode uses these settings during rendering. Dynamic assets can preview studio light without baking it into the maps." />
+                  <StackPanel Visibility="{Binding IsChecked, Converter={StaticResource VisibleWhen}, ElementName=StudioLightingInput}">
                   <local:ResponsivePanel x:Name="LightCards" MinimumItemWidth="168">
                     <StackPanel Margin="0">
                       <TextBlock TextWrapping="Wrap" Text="{Binding Value, ElementName=LightAzimuthInput, StringFormat=Direction {0:0.##}°}" />
-                      <local:NumericSlider x:Name="LightAzimuthInput" Unit="°" Minimum="-360" Maximum="360" Value="135" TickFrequency="15" ToolTip="Screen angle: 0° right, 90° top, 135° upper left" />
+                      <local:NumericSlider x:Name="LightAzimuthInput" ValueChanged="StudioValueChanged" Unit="°" Minimum="-360" Maximum="360" Value="135" TickFrequency="15" ToolTip="Screen angle: 0° right, 90° top, 135° upper left" />
                     </StackPanel>
                     <StackPanel Margin="0">
                       <TextBlock TextWrapping="Wrap" Text="{Binding Value, ElementName=LightElevationInput, StringFormat=Elevation {0:0.##}°}" />
-                      <local:NumericSlider x:Name="LightElevationInput" Unit="°" Minimum="0" Maximum="90" Value="45" ToolTip="0° skims the screen plane; 90° lights from the viewer" />
+                      <local:NumericSlider x:Name="LightElevationInput" ValueChanged="StudioValueChanged" Unit="°" Minimum="0" Maximum="90" Value="45" ToolTip="0° skims the screen plane; 90° lights from the viewer" />
                     </StackPanel>
                     <StackPanel Margin="0">
                       <TextBlock x:Name="KeyLightLabel" ToolTip="Blender Sun light strength (Light.energy), using the existing 0–10 scale. Higher values brighten light-facing surfaces and can map them to lighter palette colors. This is a raw strength value, not a percentage." TextWrapping="Wrap" Text="{Binding Value, ElementName=LightIntensityInput, StringFormat=Key Light Intensity {0:0.##}}" />
-                      <local:NumericSlider x:Name="LightIntensityInput" Minimum="0" Maximum="10" Value="2.2" />
+                      <local:NumericSlider x:Name="LightIntensityInput" ValueChanged="StudioValueChanged" Minimum="0" Maximum="10" Value="2.2" />
                     </StackPanel>
                     <StackPanel Margin="0">
                       <TextBlock TextWrapping="Wrap" Text="{Binding Value, ElementName=AmbientInput, StringFormat=Ambient {0:0.##}}" />
-                      <local:NumericSlider x:Name="AmbientInput" Minimum="0" Maximum="5" Value="0.65" />
+                      <local:NumericSlider x:Name="AmbientInput" ValueChanged="StudioValueChanged" Minimum="0" Maximum="5" Value="0.65" />
                     </StackPanel>
                     <StackPanel Margin="0">
                       <TextBlock x:Name="SurfaceShadowsLabel" TextWrapping="Wrap" Text="{Binding Value, ElementName=ShadowInput, StringFormat=Surface Shadows {0:P0}}" />
@@ -180,8 +184,9 @@
                   </local:ResponsivePanel>
                   <WrapPanel>
                     <CheckBox Margin="0,5,14,5" x:Name="CastShadowsInput" Content="Self-shadows" ToolTip="Self-shadows between model surfaces" IsChecked="True" />
-                    <CheckBox x:Name="GroundShadowsInput" Content="Ground shadows" />
                   </WrapPanel>
+                  </StackPanel>
+                  <CheckBox x:Name="GroundShadowsInput" Content="Ground Shadows" ToolTip="Optional baked ground shadows can conflict with runtime lighting." />
                   <StackPanel Visibility="{Binding IsChecked, Converter={StaticResource VisibleWhen}, ElementName=GroundShadowsInput}">
                     <TextBlock Text="{Binding Value, ElementName=GroundStrengthInput, StringFormat=Ground-shadow strength: {0:P0}}" />
                     <local:NumericSlider x:Name="GroundStrengthInput" DecimalPlaces="0" DisplayScale="100" Unit="%" Minimum="0" Maximum="1" Value="0.65" />
@@ -323,6 +328,7 @@
                 </DockPanel>
                 <ComboBox x:Name="RenderAInput" DisplayMemberPath="Label" SelectionChanged="ComparisonSelectionChanged" />
                 <CheckBox x:Name="CompareNormalA" Content="Normal map" Visibility="Collapsed" Checked="CompareMapChanged" Unchecked="CompareMapChanged" />
+                <CheckBox x:Name="CompareEmissionA" Content="Emission mask" Visibility="Collapsed" Checked="CompareMapChanged" Unchecked="CompareMapChanged" />
                 <TextBlock x:Name="RenderAInfo" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Muted}" />
                 <WrapPanel>
                   <Button Content="◀" Tag="A,-1" Click="StepComparison" Padding="8,3" />
@@ -337,6 +343,7 @@
                 </DockPanel>
                 <ComboBox x:Name="RenderBInput" DisplayMemberPath="Label" SelectionChanged="ComparisonSelectionChanged" />
                 <CheckBox x:Name="CompareNormalB" Content="Normal map" Visibility="Collapsed" Checked="CompareMapChanged" Unchecked="CompareMapChanged" />
+                <CheckBox x:Name="CompareEmissionB" Content="Emission mask" Visibility="Collapsed" Checked="CompareMapChanged" Unchecked="CompareMapChanged" />
                 <TextBlock x:Name="RenderBInfo" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource Muted}" />
                 <WrapPanel>
                   <Button Content="◀" Tag="B,-1" Click="StepComparison" Padding="8,3" />
@@ -395,7 +402,13 @@
             <ComboBox x:Name="LightingMapInput" SelectedIndex="0" SelectionChanged="LightingMapChanged" Width="130" AutomationProperties.Name="Preview map">
               <ComboBoxItem Content="Base color" />
               <ComboBoxItem Content="Normal map" />
+              <ComboBoxItem x:Name="EmissionMaskChoice" Content="Emission mask" />
+              <ComboBoxItem x:Name="EmissionPreviewChoice" Content="Emission preview" />
+              <ComboBoxItem x:Name="StudioPreviewChoice" Content="Studio preview" IsEnabled="{Binding IsChecked,ElementName=StudioLightingInput}" />
             </ComboBox>
+            <CheckBox x:Name="EmissionEnabled" Content="Glow" IsChecked="True" Checked="EmissionPreviewChanged" Unchecked="EmissionPreviewChanged" Visibility="Collapsed" />
+            <TextBox x:Name="EmissionTint" Text="#FFC840" Width="82" TextChanged="EmissionTintChanged" Visibility="Collapsed" ToolTip="Preview glow HEX color" />
+            <Slider x:Name="EmissionIntensity" Minimum="0" Maximum="2" Value="1" Width="76" ValueChanged="EmissionGainChanged" Visibility="Collapsed" AutoToolTipPlacement="TopLeft" ToolTip="Preview glow intensity" />
             <Button Content="Compare maps" Click="CompareLightingMaps" />
             <Button Content="Save lighting asset" Click="SaveLightingAsset" />
           </WrapPanel>

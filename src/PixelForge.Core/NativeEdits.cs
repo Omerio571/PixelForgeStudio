@@ -36,7 +36,7 @@ public static class NativeEdits
         bool keepMaps=generated.NormalSheet is not null&&frames.Count==generated.Frames.Length&&
             frames.Select((f,i)=>Raster.Read(f.Png).Pixels.SequenceEqual(Raster.Read(generated.Frames[i].Png).Pixels)).All(equal=>equal);
         if(keepMaps)
-            for(int i=0;i<frames.Count;i++)frames[i]=frames[i] with {Normal=generated.Frames[i].Normal};
+            for(int i=0;i<frames.Count;i++)frames[i]=frames[i] with {Normal=generated.Frames[i].Normal,Emission=generated.Frames[i].Emission};
         settings=settings with{Animation=frames.Count>1,StartFrame=1,EndFrame=frames.Count,FrameStep=1,Fps=Math.Clamp((int)Math.Round(1000.0*frames.Count/durations.Sum()),1,120)};
         settings.Save(Path.Combine(directory,"asset.settings.json"));
         File.Copy(Path.Combine(generated.Directory,"frames.json"),Path.Combine(directory,"frames.json"));
@@ -48,7 +48,7 @@ public static class NativeEdits
         var preview=Path.Combine(directory,"asset.preview.png");Raster.Read(frames[0].Png).Enlarge(Math.Max(1,Math.Min(8,2048/Math.Max(settings.Width,settings.Height)))).Save(preview);
         File.WriteAllText(Path.Combine(directory,"validation.json"),JsonSerializer.Serialize(new{savedNativeEdits=true,frameCount=frames.Count,paletteCompliant=true,binaryAlpha=true,sourceNativeUnchanged=true,sourceNativeSha256=Convert.ToHexString(before)},AssetSettings.JsonOptions));
         return new(directory,frames[0].Png,generated.Aseprite,preview,settings.DynamicLighting&&!keepMaps?["Lighting maps were invalidated because the saved artwork or frame order changed. Regenerate from geometry to restore them."]:[])
-        {Frames=frames.ToArray(),Spritesheet=exported.Sheet,Metadata=exported.Metadata,NormalSheet=keepMaps?generated.NormalSheet:null};
+        {Frames=frames.ToArray(),Spritesheet=exported.Sheet,Metadata=exported.Metadata,NormalSheet=keepMaps?generated.NormalSheet:null,EmissionSheet=keepMaps?generated.EmissionSheet:null};
     }
     private static string Quote(string text)=>"\""+text.Replace("\\","/").Replace("\"","\\\"").Replace("\r","\\r").Replace("\n","\\n")+"\"";
 }

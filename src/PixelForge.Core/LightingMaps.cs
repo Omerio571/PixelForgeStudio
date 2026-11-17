@@ -8,10 +8,11 @@ public static class LightingMaps
 {
     public static byte Encode(float value)=> (byte)Math.Clamp((int)MathF.Round((value+1)*127.5f),0,255);
 
-    internal static Raster CreateFrame(string samples,Raster color,int[] ids)
+    internal static (Raster Normal,Raster Emission) CreateFrame(string samples,Raster color,int[] ids,Raster? outlines,Raster? highlights,Raster? ground)
     {
         int count=color.Width*color.Height;
         var normals=new Vector3[count];
+        var intensity=new byte[count];
         using var reader=new BinaryReader(File.OpenRead(samples));
         for(int i=0;i<count;i++)
         {
@@ -21,16 +22,18 @@ public static class LightingMaps
             {
                 int id=reader.ReadInt32();
                 var normal=new Vector3(reader.ReadSingle(),reader.ReadSingle(),reader.ReadSingle());
-                if(id==ids[i])normals[i]=normal;
+                byte emission=reader.ReadByte();
+                if(id==ids[i]){normals[i]=normal;intensity[i]=emission;}
             }
         }
         if(reader.BaseStream.Position!=reader.BaseStream.Length)throw new InvalidDataException("Geometry normals do not match the sprite grid.");
 
         var data=new byte[color.Pixels.Length];
+        var mask=new byte[data.Length];
         for(int i=0;i<count;i++)
         {
             if(color.Pixels[i*4+3]==0)continue;
-            Vector3 normal=normals[i];
+            Vector3 normal=ids[i]==0&&(ground?.Pixels[i*4+3]??0)!=0?Vector3.UnitZ:normals[i];
             if(!Valid(normal))
             {
                 // Renderer coverage and analytic ray centers can disagree at the silhouette.
@@ -49,13 +52,16 @@ public static class LightingMaps
             normal=Vector3.Normalize(normal);
             data[i*4]=Encode(normal.Z);data[i*4+1]=Encode(normal.Y);
             data[i*4+2]=Encode(normal.X);data[i*4+3]=255;
+            int p=i*4;
+            byte strength=(outlines?.Pixels[p+3]??0)!=0||(highlights?.Pixels[p+3]??0)!=0?(byte)0:intensity[i];
+            mask[p]=mask[p+1]=mask[p+2]=strength;mask[p+3]=255;
         }
-        return new(color.Width,color.Height,data);
+        return (new(color.Width,color.Height,data),new(color.Width,color.Height,mask));
     }
 
     private static bool Valid(Vector3 n)=>float.IsFinite(n.LengthSquared())&&n.LengthSquared()>.01f;
 
-    internal static string? CreateAtlas(AssetSettings settings,string directory,FrameOutput[] frames)
+    internal static string? CreateAtlas(AssetSettings settings,string directory,FrameOutput[] frames,bool emission)
     {
         if(!settings.DynamicLighting)return null;
         var (cols,rows)=AnimationExport.Grid(settings.Width,settings.Height,frames.Length);
@@ -64,7 +70,7 @@ public static class LightingMaps
         for(int i=0;i<frames.Length;i++)
         {
             var color=Raster.Read(frames[i].Png);
-            var normal=Raster.Read(frames[i].Normal!);
+            var normal=Raster.Read((emission?frames[i].Emission:frames[i].Normal)!);
             if(color.Width!=normal.Width|| color.Height!=normal.Height)
                 throw new InvalidDataException("Color and normal dimensions differ.");
             for(int p=3;p<color.Pixels.Length;p+=4)
@@ -73,7 +79,7 @@ public static class LightingMaps
                 Array.Copy(normal.Pixels,y*normal.Width*4,pixels,
                     ((i/cols*settings.Height+y)*width+i%cols*settings.Width)*4,normal.Width*4);
         }
-        string path=Path.Combine(directory,"asset.normal.sheet.png");
+        string path=Path.Combine(directory,emission?"asset.emission.sheet.png":"asset.normal.sheet.png");
         new Raster(width,height,pixels).Save(path);
         return path;
     }
@@ -95,6 +101,12 @@ public static class LightingMaps
         metadata["image"]=color;
         var lighting=metadata["lighting"]!;
         lighting["color"]=color;lighting["normal"]=normal;
+        if(output.EmissionSheet is not null)
+        {
+            string emission=stem+".emission"+suffix;
+            File.Copy(output.EmissionSheet,Path.Combine(folder,emission));
+            lighting["emission"]=emission;
+        }
         File.WriteAllText(Path.Combine(folder,stem+".lighting.json"),metadata.ToJsonString(AssetSettings.JsonOptions));
         return folder;
     }

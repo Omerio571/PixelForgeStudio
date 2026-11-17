@@ -77,10 +77,12 @@ elif view not in azimuths:
 basis = orientation.to_matrix()
 az,el = math.radians(job['LightAzimuth']),math.radians(job['LightElevation'])
 world_light = basis @ Vector((math.cos(el)*math.cos(az),math.cos(el)*math.sin(az),math.sin(el)))
-shadow_enabled = not dynamic and job['GroundShadows'] and direction.z>.01 and world_light.z>.05
+shadow_enabled = job['GroundShadows'] and direction.z>.01 and world_light.z>.05
 include_shadow_bounds = job.get('FitBounds','ObjectOnly')=='ObjectAndGroundShadow'
 warnings = []
-if job['GroundShadows'] and not shadow_enabled and not dynamic:
+if dynamic and shadow_enabled:
+    warnings.append('Baked ground shadows can conflict with runtime lighting. Disable Ground Shadows to export only the asset silhouette.')
+if job['GroundShadows'] and not shadow_enabled:
     warnings.append('Ground shadows need a camera and light above the ground plane. They are omitted for this view/light; object lighting is unchanged.')
 # Pass one: union all evaluated motion. Store only bounds, never all frame meshes.
 lo = Vector((float('inf'),)*3)
@@ -148,6 +150,8 @@ fit_size = max(ymax-ymin,(xmax-xmin)/aspect)
 if not math.isfinite(fit_size) or fit_size <= 0:
     fail('The selected view has no finite projected extent to frame.')
 scale = job['Height']/ppu if job['WorldScale'] else fit_size/usable
+if dynamic:
+    job['NeutralAoDistance'] = scale*.045
 shift_x = (xmin+xmax)/2
 shift_y = ymin+scale*(.5-job['Padding'])
 distance = max(max((Vector((x,y,z))-pivot).length for x in (lo.x,hi.x) for y in (lo.y,hi.y) for z in (lo.z,hi.z))*3,10)
@@ -200,7 +204,7 @@ for index,frame in enumerate(frames):
     directory = out if not job['Animation'] else os.path.join(out,f'frame-{index:04d}')
     os.makedirs(directory,exist_ok=True)
     render(scene,os.path.join(directory,'render.png'))
-    if dynamic or (job.get('Outlines',False) and job.get('OutlineType')=='Selective') or (job.get('EdgeHighlights',False) and job.get('EdgeHighlightStrength',.3)>0):
+    if dynamic or (job.get('Outlines',False) and job.get('OutlineType')=='Selective') or (job.get('StudioLighting',True) and job.get('EdgeHighlights',False) and job.get('EdgeHighlightStrength',.3)>0):
         from surfaces import capture
         progress(f'Capturing evaluated edge geometry {index+1} of {len(frames)}')
         capture(scene,camera,snapshots,assembly,ids,world_light,job,directory)

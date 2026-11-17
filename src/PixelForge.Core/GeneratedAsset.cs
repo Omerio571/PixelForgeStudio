@@ -12,7 +12,8 @@ public static class GeneratedAsset
         var portable=output with{Directory=".",Png=Relative(output.Png),Aseprite=Relative(output.Aseprite),Preview=Relative(output.Preview),
             Spritesheet=output.Spritesheet is null?null:Relative(output.Spritesheet),Metadata=output.Metadata is null?null:Relative(output.Metadata),
             NormalSheet=output.NormalSheet is null?null:Relative(output.NormalSheet),
-            Frames=output.Frames.Select(f=>f with{Png=Relative(f.Png),Normal=f.Normal is null?null:Relative(f.Normal)}).ToArray()};
+            EmissionSheet=output.EmissionSheet is null?null:Relative(output.EmissionSheet),
+            Frames=output.Frames.Select(f=>f with{Png=Relative(f.Png),Normal=f.Normal is null?null:Relative(f.Normal),Emission=f.Emission is null?null:Relative(f.Emission)}).ToArray()};
         File.WriteAllText(Path.Combine(output.Directory,ManifestName),JsonSerializer.Serialize(portable,AssetSettings.JsonOptions));
     }
     public static ConversionOutput Open(string path)
@@ -26,7 +27,8 @@ public static class GeneratedAsset
             output=stored with{Directory=directory,Png=Resolve(stored.Png),Aseprite=Resolve(stored.Aseprite),Preview=Resolve(stored.Preview),
                 Spritesheet=stored.Spritesheet is null?null:Resolve(stored.Spritesheet),Metadata=stored.Metadata is null?null:Resolve(stored.Metadata),
                 NormalSheet=stored.NormalSheet is null?null:Resolve(stored.NormalSheet),
-                Frames=stored.Frames.Select(f=>f with{Png=Resolve(f.Png),Normal=f.Normal is null?null:Resolve(f.Normal)}).ToArray()};
+            EmissionSheet=stored.EmissionSheet is null?null:Resolve(stored.EmissionSheet),
+                Frames=stored.Frames.Select(f=>f with{Png=Resolve(f.Png),Normal=f.Normal is null?null:Resolve(f.Normal),Emission=f.Emission is null?null:Resolve(f.Emission)}).ToArray()};
         }
         else
         {
@@ -45,8 +47,9 @@ public static class GeneratedAsset
         AssetSettings.Load(Path.Combine(directory,"asset.settings.json"));
         if(output.Frames.Length is < 1 or > 256||output.Frames.Any(f=>!File.Exists(f.Png))||!File.Exists(output.Aseprite)||output.Metadata is null||!File.Exists(output.Metadata)||output.Spritesheet is null||!File.Exists(output.Spritesheet))
             throw new InvalidDataException("This is not a complete generated asset. Keep its native document, PNG frames, settings and sheet metadata together.");
-        if(output.NormalSheet is not null && (!File.Exists(output.NormalSheet)||output.Frames.Any(f=>!File.Exists(f.Normal))))
-            return output with {NormalSheet=null,Frames=output.Frames.Select(f=>f with {Normal=null}).ToArray(),
+        if((output.NormalSheet is not null && (!File.Exists(output.NormalSheet)||output.Frames.Any(f=>!File.Exists(f.Normal)))) ||
+           (output.EmissionSheet is not null && (!File.Exists(output.EmissionSheet)||output.Frames.Any(f=>!File.Exists(f.Emission)))))
+            return output with {NormalSheet=null,EmissionSheet=null,Frames=output.Frames.Select(f=>f with {Normal=null,Emission=null}).ToArray(),
                 Warnings=[..output.Warnings,"Lighting maps are incomplete. Regenerate the asset to restore them."]};
         return output;
     }

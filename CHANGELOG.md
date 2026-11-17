@@ -2,6 +2,13 @@
 
 Meaningful development changes, newest first. Historical entries follow saved versioned source/documentation and verification records; no historical release dates are assumed.
 
+## v0.5.0 — Emission maps and lighting previews
+
+- Export material-level grayscale emission, geometry normals and neutral palette art in matching static and animated atlases.
+- Preview adjustable glow or diffuse studio light without regenerating art. Compare color, normals and emission at linked frame indices.
+- Put Dynamic Lighting first in Lighting and Shadows, with independent Studio Lighting and Ground Shadows controls.
+- Keep palette actions together at the wider default sidebar size, remember sidebar width and display camera elevation in degrees.
+
 ## v0.4.0 — Modern desktop workspace
 
 ### Dynamic lighting assets

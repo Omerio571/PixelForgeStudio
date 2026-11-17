@@ -6,7 +6,7 @@ $env:NUGET_PACKAGES = Join-Path $PSScriptRoot '.tools/packages'
 $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
 $localSdk = Join-Path $PSScriptRoot '.tools/dotnet/dotnet.exe'
 $sdk = if (Test-Path $localSdk) { $localSdk } else { (Get-Command dotnet -ErrorAction Stop).Source }
-$zip = Join-Path $PSScriptRoot 'artifacts/releases/PixelForge-Studio-v0.4.0-win-x64.zip'
+$zip = Join-Path $PSScriptRoot 'artifacts/releases/PixelForge-Studio-v0.5.0-win-x64.zip'
 if ($Package -and (Test-Path -LiteralPath $zip)) { throw 'Release ZIP already exists; archive the previous candidate explicitly before packaging a replacement.' }
 & $sdk build PixelForgeStudio.sln -c $Configuration -m:1
 if ($LASTEXITCODE -ne 0) { throw 'Build failed.' }

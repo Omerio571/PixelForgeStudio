@@ -100,7 +100,7 @@ public partial class MainWindow
         {info.Text="Unavailable: "+e.Message;return null;}
     }
     private bool ComparingAlignedMaps => compareA is not null && compareA.Directory==compareB?.Directory &&
-        CompareNormalA.IsChecked!=CompareNormalB.IsChecked;
+        CompareMap(CompareNormalA,CompareEmissionA)!=CompareMap(CompareNormalB,CompareEmissionB);
 
     private void SetComparisonFrame(bool sideA,int index)
     {
@@ -116,7 +116,7 @@ public partial class MainWindow
         updatingCompareFrame=true;CompareFrameA.Text=(frameA+1).ToString();CompareFrameB.Text=(frameB+1).ToString();updatingCompareFrame=false;
         try
         {
-            LoadComparisonImage(compareA,frameA,CompareImageA,ref imagePathA,CompareNormalA.IsChecked==true);LoadComparisonImage(compareB,frameB,CompareImageB,ref imagePathB,CompareNormalB.IsChecked==true);
+            LoadComparisonImage(compareA,frameA,CompareImageA,ref imagePathA,CompareMap(CompareNormalA,CompareEmissionA));LoadComparisonImage(compareB,frameB,CompareImageB,ref imagePathB,CompareMap(CompareNormalB,CompareEmissionB));
             if(compareA is null||compareB is null){comparisonLayout=null;ComparisonCanvas.Visibility=Visibility.Collapsed;ComparisonInfo.Text="Choose two available saved renders. Add saved render can import a previously completed output. History keeps four recent renders plus favorites; files are never deleted.";return;}
             var a=(BitmapSource)CompareImageA.Source;var b=(BitmapSource)CompareImageB.Source;
             comparisonLayout=ComparisonLayout.Create(a.PixelWidth,a.PixelHeight,b.PixelWidth,b.PixelHeight,ComparisonLayout.ReadAnchor(compareA.Metadata),ComparisonLayout.ReadAnchor(compareB.Metadata));
@@ -128,9 +128,9 @@ public partial class MainWindow
         catch(Exception e)when(e is IOException or NotSupportedException or ArgumentException or InvalidOperationException or UnauthorizedAccessException)
         {comparisonLayout=null;ComparisonCanvas.Visibility=Visibility.Collapsed;ComparisonInfo.Text="Saved preview unavailable: "+e.Message;}
     }
-    private static void LoadComparisonImage(ConversionOutput? output,int index,Image image,ref string? loadedPath,bool normal)
+    private static void LoadComparisonImage(ConversionOutput? output,int index,Image image,ref string? loadedPath,int map)
     {
-        string? path=normal?output?.Frames[index].Normal:output?.Frames[index].Png;
+        string? path=map switch {1=>output?.Frames[index].Normal,2=>output?.Frames[index].Emission,_=>output?.Frames[index].Png};
         if(path is null){image.Source=null;loadedPath=null;return;}
         var info=new FileInfo(path);string key=path+"|"+info.LastWriteTimeUtc.Ticks+"|"+info.Length;
         if(key==loadedPath)return;

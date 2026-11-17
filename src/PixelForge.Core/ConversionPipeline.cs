@@ -6,12 +6,14 @@ namespace PixelForge.Core;
 public sealed record FrameOutput(int SourceFrame,string Png,int DurationMs)
 {
     public string? Normal { get; init; }
+    public string? Emission { get; init; }
 }
 public sealed record ConversionOutput(string Directory,string Png,string Aseprite,string Preview,string[] Warnings)
 {
     public FrameOutput[] Frames { get; init; } = [];
     public string? Spritesheet { get; init; }
     public string? NormalSheet { get; init; }
+    public string? EmissionSheet { get; init; }
     public string? Metadata { get; init; }
 }
 internal sealed record LayerImage(string Key,string Name,string Path,int Order);
@@ -126,7 +128,7 @@ public sealed class ConversionPipeline(Toolchain tools)
             layerCompositeMatches=true,generatedLayers=layerCount,sharedCamera=true,warnings,artisticApproval="Requires human review"
         },AssetSettings.JsonOptions),cancellation);
         progress?.Report($"Ready · {outputs.Length} validated frame(s). Review motion and pixels before approving.");
-        return new(directory,png,ase,preview,warnings.ToArray()){Frames=outputs,Spritesheet=export.Sheet,Metadata=export.Metadata,NormalSheet=LightingMaps.CreateAtlas(settings,directory,outputs)};
+        return new(directory,png,ase,preview,warnings.ToArray()){Frames=outputs,Spritesheet=export.Sheet,Metadata=export.Metadata,NormalSheet=LightingMaps.CreateAtlas(settings,directory,outputs,false),EmissionSheet=LightingMaps.CreateAtlas(settings,directory,outputs,true)};
     }
 
     private async Task RunBlender(AssetSettings settings,string directory,IProgress<string>? progress,CancellationToken cancellation,double[]? sharedBounds=null,bool boundsOnly=false)
@@ -148,7 +150,7 @@ public sealed class ConversionPipeline(Toolchain tools)
 
     private static (FrameLayers Layers,string[] Warnings) ConvertFrame(AssetSettings settings,string directory,int sourceFrame,int index,int[] ids,JsonElement names,IReadOnlyDictionary<int,int>? outlineGroups)
     {
-        bool effects=settings.Outlines&&settings.OutlineType==OutlineStyle.Selective||settings.EdgeHighlights&&settings.EdgeHighlightStrength>0;
+        bool effects=settings.Outlines&&settings.OutlineType==OutlineStyle.Selective||settings.StudioLighting&&!settings.DynamicLighting&&settings.EdgeHighlights&&settings.EdgeHighlightStrength>0;
         var surfaces=effects?SurfaceFrame.Read(Path.Combine(directory,"surfaces.json"),settings):null;
         var converted=PixelEngine.Convert(Raster.Read(Path.Combine(directory,"render.png")),Raster.Read(Path.Combine(directory,"ids.png")),settings,ids,surfaces,outlineGroups);
         var layers=new List<LayerImage>();Raster? shadow=null;var frameWarnings=converted.Warnings.ToList();
@@ -180,13 +182,15 @@ public sealed class ConversionPipeline(Toolchain tools)
         var image=GroundShadow.Composite(converted.Image,shadow);PixelEngine.Validate(image,settings);
         var png=Path.Combine(directory,"asset.png");image.Save(png);
         int duration=PlaybackTimeline.FrameDuration(index,settings.Fps);
-        string? normal=null;
+        string? normal=null,emission=null;
         if(settings.DynamicLighting)
         {
             normal=Path.Combine(directory,"asset.normal.png");
-            LightingMaps.CreateFrame(Path.Combine(directory,"normals.bin"),image,converted.ObjectIds).Save(normal);
+            emission=Path.Combine(directory,"asset.emission.png");
+            var maps=LightingMaps.CreateFrame(Path.Combine(directory,"normals.bin"),image,converted.ObjectIds,converted.OutlineLayer,converted.HighlightLayer,shadow);
+            maps.Normal.Save(normal);maps.Emission.Save(emission);
         }
-        return(new(new FrameOutput(sourceFrame,png,duration){Normal=normal},layers.ToArray()),frameWarnings.ToArray());
+        return(new(new FrameOutput(sourceFrame,png,duration){Normal=normal,Emission=emission},layers.ToArray()),frameWarnings.ToArray());
     }
     private static async Task<byte[]> Hash(string path){using var stream=File.OpenRead(path);return await SHA256.HashDataAsync(stream);}
 }

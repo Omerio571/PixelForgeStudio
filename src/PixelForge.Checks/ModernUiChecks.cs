@@ -12,7 +12,7 @@ using PixelForge.Desktop;
 
 internal static class ModernUiChecks
 {
-    public static void Run(string model, string animated, string directory)
+    public static void Run(string model, string animated, string directory,string? emissionAsset=null)
     {
         directory = Path.GetFullPath(Path.Combine(directory, "run-" + Guid.NewGuid().ToString("N")[..8]));
         Directory.CreateDirectory(directory);
@@ -24,7 +24,7 @@ internal static class ModernUiChecks
             SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext());
             app.Startup += async (_, _) =>
             {
-                try { await Verify(app, Path.GetFullPath(model), Path.GetFullPath(animated), directory); }
+                try { await Verify(app, Path.GetFullPath(model), Path.GetFullPath(animated), directory,emissionAsset); }
                 catch (Exception ex) { failure = ex; }
                 finally { app.Shutdown(); }
             };
@@ -34,7 +34,7 @@ internal static class ModernUiChecks
         if (failure is not null) throw new Exception("Modern WPF verification failed", failure);
     }
 
-    private static async Task Verify(App app, string model, string animated, string root)
+    private static async Task Verify(App app, string model, string animated, string root,string? emissionAsset)
     {
         Environment.SetEnvironmentVariable("PIXELFORGE_PROFILE", Path.Combine(root, "profile"));
         var window = new MainWindow(); window.Show();
@@ -61,6 +61,30 @@ internal static class ModernUiChecks
         Check(window.Left >= area.Left && window.Top >= area.Top && window.Top + window.ActualHeight <= area.Bottom + 1,
             "startup centers the complete workspace within the available work area");
         Check(Find<StackPanel>("SettingsPanel").Children.OfType<Expander>().Count() == 7, "all seven settings sections retained");
+        var widthColumn=Find<ColumnDefinition>("SettingsWidth");
+        Check(widthColumn.ActualWidth>336 && widthColumn.ActualWidth<=400,"slightly wider initial sidebar keeps preview space");
+        Find<Expander>("ManageColors").IsExpanded=true;
+        foreach(bool light in new[]{false,true})
+        {
+            Find<RadioButton>(light?"LightTheme":"DarkTheme").IsChecked=true;await Layout();
+            var actions=Find<WrapPanel>("PaletteActions");
+            var buttons=actions.Children.OfType<Button>().ToArray();
+            Check(buttons.Length==4&&buttons.Select(b=>b.TranslatePoint(new Point(),actions).Y).Distinct().Count()==1,
+                "all palette actions share one row in "+(light?"Light":"Dark"));
+        }
+        Find<RadioButton>("DarkTheme").IsChecked=true;
+        Find<Expander>("ManageColors").IsExpanded=false;
+        var lighting=(StackPanel)Find<Expander>("LightingSection").Content;
+        Check(lighting.Children[0]==Find<CheckBox>("DynamicLightingInput"),"Dynamic Lighting is the first setting in Lighting and Shadows");
+        Find<CheckBox>("StudioLightingInput").IsChecked=false;
+        Check(((StackPanel)Find<ResponsivePanel>("LightCards").Parent).Visibility==Visibility.Collapsed,
+            "disabling studio hides dependent settings");
+        Find<CheckBox>("GroundShadowsInput").IsChecked=true;
+        Check(((StackPanel)Find<NumericSlider>("GroundStrengthInput").Parent).Visibility==Visibility.Visible,
+            "ground shadow controls remain independently available");
+        Find<CheckBox>("StudioLightingInput").IsChecked=true;
+        Find<CheckBox>("GroundShadowsInput").IsChecked=false;
+        widthColumn.Width=new GridLength(394);
         Find<TextBox>("ModelPath").Text = model;
         var before = Settings();
         Find<RadioButton>("LightTheme").IsChecked = true; await Layout();
@@ -76,6 +100,7 @@ internal static class ModernUiChecks
         Find<Expander>("LightingSection").IsExpanded = false;
         Call("SavePreferences"); window.Close(); window = new MainWindow(); window.Show(); await Layout();
         Check(ThemeManager.Current == "Light" && Find<TextBox>("ModelPath").Text == model, "theme and model persist across actual window restart");
+        Check(Find<ColumnDefinition>("SettingsWidth").ActualWidth==394,"sidebar width survives actual window restart");
         Check(!Find<Expander>("LightingSection").IsExpanded, "section expansion persists outside asset settings");
         Find<RadioButton>("DarkTheme").IsChecked = true;
         await (Task)Call("InspectSelectedModel")!;
@@ -192,6 +217,9 @@ internal static class ModernUiChecks
         Check(!Find<ComboBox>("ViewInput").IsEnabled && Find<StackPanel>("CameraElevationPanel").IsVisible,
             "batch disables direction selection and tilted Top exposes elevation");
         Find<CheckBox>("DynamicLightingInput").IsChecked=true;
+        Check(Find<NumericSlider>("CameraElevationInput").Unit=="°" &&
+              Find<NumericSlider>("CameraElevationInput").Value==65,
+            "camera elevation shows degrees while retaining its value");
         var cameraSettings=(AssetSettings)Call("ReadSettings")!;
         Check(cameraSettings.Camera?.Elevation==65 && cameraSettings.RenderAllDirections,"camera inputs reach asset settings");
         Call("Generate",window,events);
@@ -243,6 +271,32 @@ internal static class ModernUiChecks
         var restored=(AssetSettings)Call("ReadSettings")!;
         Check(restored.Camera==cameraSettings.Camera && restored.RenderAllDirections && restored.DynamicLighting,
             "camera family, perspective, elevation and batch mode persist across restart");
+        if(emissionAsset is not null)
+        {
+            var sample=GeneratedAsset.Open(emissionAsset);
+            typeof(MainWindow).GetField("output",BindingFlags.Instance|BindingFlags.NonPublic)!.SetValue(window,sample);
+            Call("LoadPlayback",sample,24);await Layout();
+            string sourceHash=Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(sample.Png)));
+            var selector=Find<ComboBox>("LightingMapInput");
+            var preview=Find<Image>("PreviewImage");
+            var baseImage=preview.Source;
+            selector.SelectedIndex=2;
+            Check(!ReferenceEquals(baseImage,preview.Source),"emission mask is one selection away");
+            selector.SelectedIndex=3;
+            var warm=preview.Source;
+            Find<TextBox>("EmissionTint").Text="#33AAFF";
+            Check(!ReferenceEquals(warm,preview.Source),"fresh tint updates emission preview immediately");
+            Capture("emission-preview");
+            Find<CheckBox>("EmissionEnabled").IsChecked=false;
+            Check(ReferenceEquals(baseImage,preview.Source),"glow off shows the cached base art");
+            Check(sourceHash==Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(sample.Png))),
+                "emission preview never modifies exported base pixels");
+            selector.SelectedIndex=2;
+            Call("CompareLightingMaps",window,events);
+            Check(Find<CheckBox>("CompareEmissionB").IsChecked==true,"Compare maps opens the emission mask against base color");
+            await Layout();Capture("emission-comparison");
+            Call("CloseComparison");
+        }
         window.Close();
         File.WriteAllText(Path.Combine(root, "results.json"), JsonSerializer.Serialize(new { checks, still = still.Directory, animation = animation.Directory, dpi = VisualTreeHelper.GetDpi(window).DpiScaleX }));
         Console.WriteLine($"{checks} modern UI checks passed: {root}");

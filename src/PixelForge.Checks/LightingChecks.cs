@@ -27,6 +27,9 @@ internal static class LightingChecks
         {
             var asset=await pipeline.Generate(compare with {Model=Path.GetFullPath(cube),Camera=views[i],DynamicLighting=true},root);
             Validate(asset);
+            var emission=Raster.Read(asset.EmissionSheet!);
+            if(Enumerable.Range(0,emission.Width*emission.Height).Any(index=>emission.Pixels[index*4]!=0))
+                throw new InvalidDataException("A non-emissive material produced emission.");
             var map=Raster.Read(asset.Frames[0].Normal!);
             var normals=Enumerable.Range(0,map.Width*map.Height).Where(p=>map.Pixels[p*4+3]==255)
                 .Select(p=>Vector3.Normalize(new Vector3(map.Pixels[p*4+2],map.Pixels[p*4+1],map.Pixels[p*4])/127.5f-Vector3.One)).ToArray();
@@ -64,7 +67,7 @@ internal static class LightingChecks
         await Toolchain.Run(tools.Aseprite,["--batch","--script",script],Path.Combine(root,"edit.log"));
         var editedBytes=File.ReadAllBytes(editedNative);
         var edited=await NativeEdits.Read(animated with {Aseprite=editedNative},tools);
-        if(edited.NormalSheet is not null||edited.Frames.Any(f=>f.Normal is not null)||
+        if(edited.NormalSheet is not null||edited.EmissionSheet is not null||edited.Frames.Any(f=>f.Normal is not null||f.Emission is not null)||
             !edited.Warnings.Any(w=>w.Contains("invalidated"))||!File.ReadAllBytes(editedNative).SequenceEqual(editedBytes))
             throw new InvalidDataException("Silhouette edits did not safely invalidate maps.");
         var export=LightingMaps.Export(animated,root);
@@ -73,6 +76,42 @@ internal static class LightingChecks
             throw new InvalidDataException("Lighting export did not retain updated frame timing.");
         File.WriteAllText(Path.Combine(root,"results.json"),JsonSerializer.Serialize(new {animated=animated.Directory,export,bakedPixelsIdentical=true,cubeViews=3,frames=4},AssetSettings.JsonOptions));
         Console.WriteLine("PASS: baked pixels, synchronized animation atlas, native reload, and retiming.");
+    }
+
+    public static async Task Emission(string model,string root)
+    {
+        root=Path.GetFullPath(root);
+        var pipeline=new ConversionPipeline(Toolchain.Discover());
+        var settings=new AssetSettings
+        {
+            Model=Path.GetFullPath(model),Width=128,Height=96,Animation=true,StartFrame=1,EndFrame=4,FrameStep=3,
+            DynamicLighting=true,StudioLighting=false,GroundShadows=false,
+            Camera=new(CameraFamily.Top,CameraDirection.S,CameraPerspective.TopDownThreeQuarter,60)
+        };
+        var output=await pipeline.Generate(settings,root);
+        Validate(output);
+        for(int i=0;i<output.Frames.Length;i++)
+        {
+            var frame=output.Frames[i];var mask=Raster.Read(frame.Emission!);var color=Raster.Read(frame.Png);
+            var visible=new HashSet<byte>();
+            for(int p=0;p<mask.Pixels.Length;p+=4)
+            {
+                var v=mask.Pixels[p];
+                if(v!=mask.Pixels[p+1]||v!=mask.Pixels[p+2]||mask.Pixels[p+3]!=color.Pixels[p+3])
+                    throw new InvalidDataException("Emission is not grayscale and alpha-aligned.");
+                if(mask.Pixels[p+3]!=0)visible.Add(v);
+            }
+            if(!visible.SetEquals(new byte[] {0,(byte)(i==0?128:191),255}))
+                throw new InvalidDataException($"Mixed and animated material intensities do not match: {string.Join(',',visible)}.");
+        }
+        var atlas=File.ReadAllBytes(output.EmissionSheet!);
+        GeneratedAsset.Save(output);
+        output=AnimationTiming.Apply(GeneratedAsset.Open(output.Directory),24);
+        if(!File.ReadAllBytes(output.EmissionSheet!).SequenceEqual(atlas))
+            throw new InvalidDataException("Retiming changed emission bytes.");
+        var export=LightingMaps.Export(output,root);
+        File.WriteAllText(Path.Combine(root,"results.json"),JsonSerializer.Serialize(new{asset=output.Directory,export,frames=2,intensities=new[]{0,128,191,255}}));
+        Console.WriteLine("PASS: material-level zero, partial and full emission; animated strength, alpha alignment and retiming.");
     }
 
     private static void Validate(ConversionOutput asset)
