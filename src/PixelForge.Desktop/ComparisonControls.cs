@@ -25,6 +25,7 @@ public partial class MainWindow
     private IEnumerable<NumericSlider> NumericControls(bool includeDivider=false)
     {
         foreach(var c in new[]{PaddingInput,LightAzimuthInput,LightElevationInput,LightIntensityInput,AmbientInput,ShadowInput,GroundStrengthInput,GroundSoftnessInput,EdgeStrengthInput})if(c is not null)yield return c;
+        if(CameraElevationInput is not null&&(includeDivider||CameraElevationPanel.Visibility==Visibility.Visible))yield return CameraElevationInput;
         if(includeDivider&&DividerInput is not null)yield return DividerInput;
     }
     private void DimensionsChanged(object sender,TextChangedEventArgs e)=>UpdatePresetSelection();

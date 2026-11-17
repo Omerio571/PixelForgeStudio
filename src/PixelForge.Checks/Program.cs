@@ -2,6 +2,8 @@ using System.IO;
 using System.Security.Cryptography;
 using PixelForge.Core;
 
+if(args.Length>0&&args[0]=="--camera-verify") { await CameraChecks.Verify(args[1],args[2]); return; }
+if(args.Length>0&&args[0]=="--camera-comparison") { await CameraChecks.Compare(args[1],args[2]); return; }
 if(args.Length>0&&args[0]=="--polish-pixels") { PolishChecks.ComparePixels(args[1],args[2]); return; }
 if(args.Length>0&&args[0]=="--ui-polish") { PolishChecks.Run(args[1],args.Length>2?args[2]:"outputs/ui-polish"); return; }
 if(args.Length>0&&args[0]=="--ui-polish-restore") { PolishChecks.Restore(args[1]); return; }

@@ -115,14 +115,23 @@
                 <StackPanel Margin="0,0,4,0">
                   <local:ResponsivePanel MinimumItemWidth="168">
                     <StackPanel>
+                      <TextBlock Text="View Type" />
+                      <ComboBox x:Name="CameraFamilyInput" SelectionChanged="CameraFamilyChanged" />
+                    </StackPanel>
+                    <StackPanel>
                       <TextBlock Text="Direction" />
                       <ComboBox x:Name="ViewInput" />
                     </StackPanel>
                     <StackPanel>
-                      <TextBlock Text="Projection" />
-                      <ComboBox x:Name="ProjectionInput" />
+                      <TextBlock Text="Projection / Perspective" />
+                      <ComboBox x:Name="ProjectionInput" SelectionChanged="CameraPerspectiveChanged" />
                     </StackPanel>
                   </local:ResponsivePanel>
+                  <StackPanel x:Name="CameraElevationPanel" Visibility="Collapsed">
+                    <TextBlock Text="Camera elevation (degrees)" />
+                    <local:NumericSlider x:Name="CameraElevationInput" Minimum="40" Maximum="85" Value="60" DecimalPlaces="1" />
+                  </StackPanel>
+                  <CheckBox x:Name="AllDirectionsInput" Content="Render All Directions" Checked="AllDirectionsChanged" Unchecked="AllDirectionsChanged" />
                   <TextBlock Text="Fit bounds source" />
                   <ComboBox x:Name="FitBoundsInput" DisplayMemberPath="Value" SelectedValuePath="Key" ToolTip="Object Only keeps machine scale unchanged by shadows. Shadow-inclusive fit is an explicit choice." />
                   <TextBlock Text="Padding (0–0.40)" FontSize="12" />
@@ -419,9 +428,11 @@
         </ScrollViewer>
         <DockPanel Grid.Row="4" LastChildFill="False">
           <StackPanel x:Name="ExportPanel" DockPanel.Dock="Right" IsEnabled="False">
+            <ComboBox x:Name="RenderedDirectionInput" SelectionChanged="SelectRenderedDirection" Visibility="Collapsed" AutomationProperties.Name="Rendered direction" />
+            <Button x:Name="DirectionalExportButton" Content="Save Directional Batch" Click="SaveDirectionalBatch" Visibility="Collapsed" />
             <Button Content="•••" Click="ExportMenu" ToolTip="More export actions" />
           </StackPanel>
-          <StackPanel Orientation="Horizontal" x:Name="PrimaryExports" IsEnabled="{Binding IsEnabled, ElementName=ExportPanel}" Visibility="{Binding Visibility, ElementName=ExportPanel}">
+          <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom" x:Name="PrimaryExports" IsEnabled="{Binding IsEnabled, ElementName=ExportPanel}" Visibility="{Binding Visibility, ElementName=ExportPanel}">
             <Button Content="Save Current PNG" Click="SavePng" />
             <Button Content="Save Spritesheet" Click="SaveSheet" />
             <Button Content="Open in Aseprite" Click="OpenAseprite" />

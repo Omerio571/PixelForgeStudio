@@ -56,6 +56,10 @@ Requires **Windows x64**. The application and .NET desktop runtime are bundled i
 
 See the [usage guide](docs/USAGE.md) for grouping, framing, manual edits and limitations, and [release notes](docs/release/v0.4.0.md) for this version.
 
+In **Camera and Scale**, choose the view type, direction and perspective. Top-Down 3/4 defaults to 60° and accepts 40–85°. In Direct Top and Direct Bottom, the direction points toward the top of the image. In tilted and side views, it identifies the side from which the camera looks. East is +X, north is +Y and up is +Z. Older settings retain their original render orientation.
+
+**Render All Directions** shares framing across all four directions and all sampled frames. Select a rendered direction to preview it or edit its playback FPS. **Save Directional Batch** creates a new folder with direction-suffixed PNG frame sets, sheets, JSON and editable Aseprite documents. Ground shadows are omitted when the camera or light is too low to project onto the visible ground.
+
 ## Building from Source
 
 Install the **Windows .NET 10 SDK** and use PowerShell in the cloned/extracted source folder:

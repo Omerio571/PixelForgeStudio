@@ -15,7 +15,58 @@ internal sealed record FrameLayers(FrameOutput Output,LayerImage[] Layers);
 
 public sealed class ConversionPipeline(Toolchain tools)
 {
+    public async Task<ConversionOutput[]> GenerateDirections(AssetSettings settings,string outputRoot,IProgress<string>? progress=null,CancellationToken cancellation=default)
+    {
+        if (!settings.RenderAllDirections)
+            return [await Generate(settings,outputRoot,progress,cancellation)];
+        var camera=settings.Camera??CameraSelection.FromLegacy(settings.View,settings.Projection);
+        var variants=CameraSelection.Directions(camera.Family)
+            .Select(direction=>settings with {Camera=camera with {Direction=direction},RenderAllDirections=false}).ToArray();
+        return await GenerateShared(variants,outputRoot,progress,cancellation);
+    }
+
+    public async Task<ConversionOutput[]> GenerateShared(AssetSettings[] variants,string outputRoot,IProgress<string>? progress=null,CancellationToken cancellation=default)
+    {
+        if(variants.Length==0)throw new ArgumentException("Select at least one camera view.");
+        var first=variants[0];
+        if(variants.Any(s=>s.Model!=first.Model||s.Width!=first.Width||s.Height!=first.Height||
+            s.Padding!=first.Padding||s.WorldScale!=first.WorldScale||s.PixelsPerUnit!=first.PixelsPerUnit||
+            s.Animation!=first.Animation||s.Frame!=first.Frame||s.StartFrame!=first.StartFrame||
+            s.EndFrame!=first.EndFrame||s.FrameStep!=first.FrameStep))
+            throw new ArgumentException("Shared framing requires the same model, canvas, scale and sampled frames.");
+        var batch=Path.Combine(Path.GetFullPath(outputRoot),"views-"+Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(batch);
+        var bounds=new List<double[]>();
+        var sourceHash=await Hash(variants[0].Model);
+        for(int i=0;i<variants.Length;i++)
+        {
+            var settings=variants[i];settings.Validate();tools.Validate();
+            var directory=Path.Combine(batch,"bounds-"+i);Directory.CreateDirectory(directory);
+            progress?.Report($"Measuring camera view {i+1} of {variants.Length}…");
+            await RunBlender(settings,directory,progress,cancellation,boundsOnly:true);
+            using var framing=JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(directory,"framing.json"),cancellation));
+            bounds.Add(framing.RootElement.GetProperty("bounds").EnumerateArray().Select(x=>x.GetDouble()).ToArray());
+        }
+        double[] shared=[bounds.Min(b=>b[0]),bounds.Max(b=>b[1]),bounds.Min(b=>b[2]),bounds.Max(b=>b[3])];
+        var results=new List<ConversionOutput>();
+        foreach(var settings in variants)
+        {
+            progress?.Report($"Rendering {settings.Camera?.Direction} · {results.Count+1} of {variants.Length}…");
+            results.Add(await GenerateSingle(settings,batch,progress,cancellation,shared));
+        }
+        var finalHash=await Hash(variants[0].Model);
+        if(!sourceHash.SequenceEqual(finalHash))
+            throw new IOException("The source Blender file changed during the camera batch.");
+        return results.ToArray();
+    }
+
     public async Task<ConversionOutput> Generate(AssetSettings settings,string outputRoot,IProgress<string>? progress=null,CancellationToken cancellation=default)
+    {
+        if(settings.RenderAllDirections)throw new ArgumentException("Use GenerateDirections for a directional batch.");
+        return await GenerateSingle(settings,outputRoot,progress,cancellation,null);
+    }
+
+    private async Task<ConversionOutput> GenerateSingle(AssetSettings settings,string outputRoot,IProgress<string>? progress,CancellationToken cancellation,double[]? sharedBounds)
     {
         settings.Validate();tools.Validate();
         if(!File.Exists(settings.Model)||!Path.GetExtension(settings.Model).Equals(".blend",StringComparison.OrdinalIgnoreCase))
@@ -25,17 +76,7 @@ public sealed class ConversionPipeline(Toolchain tools)
         System.IO.Directory.CreateDirectory(directory);
         var before=await Hash(settings.Model);
         settings.Save(Path.Combine(directory,"asset.settings.json"));
-        var job=JsonSerializer.SerializeToNode(settings,AssetSettings.JsonOptions)!.AsObject();job["output"]=directory;
-        var jobPath=Path.Combine(directory,"job.json");await File.WriteAllTextAsync(jobPath,job.ToJsonString(),cancellation);
-        try
-        {
-            await Toolchain.Run(tools.Blender,["--background","--factory-startup","--disable-autoexec","--python-exit-code","1","--python",Path.Combine(AppContext.BaseDirectory,"bridge","render.py"),"--",jobPath],Path.Combine(directory,"blender.log"),cancellation,progress);
-        }
-        catch(IOException) when(File.Exists(Path.Combine(directory,"error.json")))
-        {
-            using var error=JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(directory,"error.json"),cancellation));
-            throw new InvalidDataException(error.RootElement.GetProperty("message").GetString()+$"\nTechnical log: {Path.Combine(directory,"blender.log")}");
-        }
+        await RunBlender(settings,directory,progress,cancellation,sharedBounds);
         var after=await Hash(settings.Model);
         if(!before.SequenceEqual(after))throw new IOException("The source Blender file changed during conversion. Output has not been approved.");
         using var metadata=JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(directory,"model.json"),cancellation));
@@ -82,6 +123,23 @@ public sealed class ConversionPipeline(Toolchain tools)
         },AssetSettings.JsonOptions),cancellation);
         progress?.Report($"Ready · {outputs.Length} validated frame(s). Review motion and pixels before approving.");
         return new(directory,png,ase,preview,warnings.ToArray()){Frames=outputs,Spritesheet=export.Sheet,Metadata=export.Metadata};
+    }
+
+    private async Task RunBlender(AssetSettings settings,string directory,IProgress<string>? progress,CancellationToken cancellation,double[]? sharedBounds=null,bool boundsOnly=false)
+    {
+        var job=JsonSerializer.SerializeToNode(settings,AssetSettings.JsonOptions)!.AsObject();job["output"]=directory;
+        job["boundsOnly"]=boundsOnly;
+        if(sharedBounds is not null)job["sharedBounds"]=JsonSerializer.SerializeToNode(sharedBounds);
+        var jobPath=Path.Combine(directory,"job.json");await File.WriteAllTextAsync(jobPath,job.ToJsonString(),cancellation);
+        try
+        {
+            await Toolchain.Run(tools.Blender,["--background","--factory-startup","--disable-autoexec","--python-exit-code","1","--python",Path.Combine(AppContext.BaseDirectory,"bridge","render.py"),"--",jobPath],Path.Combine(directory,"blender.log"),cancellation,progress);
+        }
+        catch(IOException) when(File.Exists(Path.Combine(directory,"error.json")))
+        {
+            using var error=JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(directory,"error.json"),cancellation));
+            throw new InvalidDataException(error.RootElement.GetProperty("message").GetString()+$"\nTechnical log: {Path.Combine(directory,"blender.log")}");
+        }
     }
 
     private static (FrameLayers Layers,string[] Warnings) ConvertFrame(AssetSettings settings,string directory,int sourceFrame,int index,int[] ids,JsonElement names,IReadOnlyDictionary<int,int>? outlineGroups)

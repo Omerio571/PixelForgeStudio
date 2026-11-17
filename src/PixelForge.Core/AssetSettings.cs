@@ -15,6 +15,8 @@ public sealed record AssetSettings
     public int Height { get; init; } = 128;
     public CameraView View { get; init; } = CameraView.IsometricSE;
     public Projection Projection { get; init; } = Projection.Dimetric2To1;
+    public CameraSelection? Camera { get; init; }
+    public bool RenderAllDirections { get; init; }
     public int SamplesPerPixel { get; init; } = 3;
     public double Padding { get; init; } = .08;
     public bool WorldScale { get; init; }
@@ -52,6 +54,7 @@ public sealed record AssetSettings
         if (SamplesPerPixel is not (1 or 3)) throw new ArgumentException("Sampling must be 1 (direct) or 3 (coverage).");
         if (!double.IsFinite(Padding) || Padding < 0 || Padding > .4) throw new ArgumentException("Padding must be between 0 and 0.4.");
         if (!double.IsFinite(PixelsPerUnit) || PixelsPerUnit <= 0 || PixelsPerUnit > 2048) throw new ArgumentException("Pixels per unit must be greater than zero and at most 2048.");
+        Camera?.Validate();
         if (!Enum.IsDefined(View) || !Enum.IsDefined(Projection)) throw new ArgumentException("Unknown camera or projection.");
         if (!Enum.IsDefined(FitBounds) || !Enum.IsDefined(GroupedOutlines)) throw new ArgumentException("Unknown fit-bounds or grouped-outline mode.");
         if (Colors.Length == 0 || Colors.Length > 4096) throw new ArgumentException("Select 1–4096 palette colors.");

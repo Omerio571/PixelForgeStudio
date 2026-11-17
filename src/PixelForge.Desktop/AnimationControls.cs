@@ -90,7 +90,7 @@ public partial class MainWindow
     private void ScrubFrame(object sender,RoutedPropertyChangedEventArgs<double> e){if(updatingTimeline||playback is null)return;PausePlayback();playback.Seek((int)Math.Round(TimelineInput.Value));ShowPlaybackFrame();}
     private void SaveSheet(object sender,RoutedEventArgs e)=>Try(()=>
     {
-        if(output is null||!EnsureTimingApplied())return;var dialog=new SaveFileDialog{Filter="PNG spritesheet|*.png",FileName=Path.GetFileNameWithoutExtension(ModelPath.Text)+".sheet.png",OverwritePrompt=true};
+        if(output is null||!EnsureTimingApplied())return;var dialog=new SaveFileDialog{Filter="PNG spritesheet|*.png",FileName=ExportStem()+".sheet.png",OverwritePrompt=true};
         Prepare(dialog,"sheets");if(dialog.ShowDialog()!=true)return;
         if(File.Exists(Path.ChangeExtension(dialog.FileName,"json"))&&ThemedMessage("Replace the existing companion JSON metadata too?","Spritesheet metadata",MessageBoxButton.YesNo)!=MessageBoxResult.Yes)return;
         AssetExport.SaveSpritesheet(output,dialog.FileName);RememberFile("sheets",dialog.FileName);Status.Text="Spritesheet PNG and JSON saved: "+dialog.FileName;
@@ -158,6 +158,7 @@ public partial class MainWindow
         var dialog=new OpenFileDialog{Title="Open a generated animation without rendering",Filter="Generated asset|asset.output.json;asset.settings.json;asset.sheet.json;*.aseprite|JSON files|*.json"};
         Prepare(dialog,"assets");if(dialog.ShowDialog()!=true)return;
         var selected=GeneratedAsset.Open(dialog.FileName);RememberFile("assets",dialog.FileName);var settings=AssetSettings.Load(Path.Combine(selected.Directory,"asset.settings.json"));
+        directionalBatch=[];UpdateDirectionalControls();
         CloseComparison();ApplySettings(settings);output=selected;LoadPlayback(output,settings.Fps);EmptyPreview.Visibility=Visibility.Collapsed;ExportPanel.IsEnabled=true;
         OutputInfo.Text=$"{settings.Width} × {settings.Height} · {output.Frames.Length} existing frame(s) · no rendering";
         Status.Text="Generated asset reopened with saved playback timing. Blender was not started.";

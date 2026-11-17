@@ -134,6 +134,8 @@ public partial class MainWindow
     {
         if(output?.Directory==original.Directory){output=saved;if(session?.IsManaged(saved.Directory)==false)OutputInfo.Text=OutputInfo.Text.Replace("temporary session","preserved editable render");}
         if(compareA?.Directory==original.Directory)compareA=saved;if(compareB?.Directory==original.Directory)compareB=saved;
+        for(int n=0;n<directionalBatch.Length;n++)
+            if(directionalBatch[n].Directory==original.Directory)directionalBatch[n]=saved;
         for(int n=0;n<sessionOutputs.Count;n++)if(sessionOutputs[n].Directory==original.Directory)sessionOutputs[n]=saved;
     }
     private void PreserveCurrent(object sender,RoutedEventArgs e)=>Try(()=>

@@ -26,7 +26,9 @@ public static class AnimationExport
         File.WriteAllText(metadata,JsonSerializer.Serialize(new
         {
             version=1,image="asset.sheet.png",columns,rows,width=w,height=h,canvas=new{width=settings.Width,height=settings.Height},
-            fps=settings.Fps,pivot,anchor=pivot,groundWorld=manifest.GetProperty("ground_pivot"),
+            camera=settings.Camera??CameraSelection.FromLegacy(settings.View,settings.Projection),
+            cameraElevation=manifest.TryGetProperty("elevation_degrees",out var elevation)?elevation.GetDouble():(double?)null,
+            frameCount=frames.Length,fps=settings.Fps,pivot,anchor=pivot,groundWorld=manifest.GetProperty("ground_pivot"),
             worldUnitsPerPixel=scale/settings.Height,trimmed=false,alpha="binary",palette=settings.Colors,
             tags=settings.Animation?new[]{new{name=string.IsNullOrWhiteSpace(settings.AnimationTag)?"Animation":settings.AnimationTag,from=0,to=frames.Length-1,direction="forward"}}:[],
             frames=frames.Select((f,i)=>new{index=i,sourceFrame=f.SourceFrame,x=i%columns*settings.Width,y=i/columns*settings.Height,width=settings.Width,height=settings.Height,durationMs=f.DurationMs,pivot})

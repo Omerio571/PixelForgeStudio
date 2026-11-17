@@ -32,20 +32,42 @@ public static class AssetExport
         try{File.WriteAllText(temporary,json.ToJsonString(AssetSettings.JsonOptions));Copy(temporary,Path.ChangeExtension(destination,"json"));}
         finally{try{File.Delete(temporary);}catch(Exception e)when(e is IOException or UnauthorizedAccessException){}}
     }
-    public static string SaveFrames(ConversionOutput output,string selectedDirectory)
+    public static string SaveFrames(ConversionOutput output,string selectedDirectory,string? folderName=null)
     {
         // A fresh child directory protects any manually edited previous frame set.
-        var directory=Path.Combine(selectedDirectory,"PixelForge-frames-"+DateTime.Now.ToString("yyyyMMdd-HHmmss")+"-"+Guid.NewGuid().ToString("N")[..6]);
+        var directory=Path.Combine(selectedDirectory,folderName??("PixelForge-frames-"+DateTime.Now.ToString("yyyyMMdd-HHmmss")+"-"+Guid.NewGuid().ToString("N")[..6]));
         Directory.CreateDirectory(directory);
         foreach(var (frame,index) in output.Frames.Select((f,i)=>(f,i)))Copy(frame.Png,Path.Combine(directory,$"frame-{index:0000}.png"));
         var source=System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(output.Metadata!))!;
         File.WriteAllText(Path.Combine(directory,"animation-metadata.json"),System.Text.Json.JsonSerializer.Serialize(new
         {
-            canvas=source["canvas"],pivot=source["pivot"],fps=source["fps"],tags=source["tags"],
+            camera=source["camera"],cameraElevation=source["cameraElevation"],frameCount=output.Frames.Length,groundWorld=source["groundWorld"],worldUnitsPerPixel=source["worldUnitsPerPixel"],canvas=source["canvas"],pivot=source["pivot"],fps=source["fps"],tags=source["tags"],
             frames=output.Frames.Select((f,i)=>new{index=i,file=$"frame-{i:0000}.png",sourceFrame=f.SourceFrame,durationMs=f.DurationMs})
         },AssetSettings.JsonOptions));
         return directory;
     }
+    public static string SaveDirections(ConversionOutput[] outputs,string selectedDirectory)
+    {
+        if(outputs.Length!=4)throw new ArgumentException("A directional batch requires four completed renders.");
+        var settingsByDirection=outputs.Select(item=>AssetSettings.Load(Path.Combine(item.Directory,"asset.settings.json"))).ToArray();
+        if(settingsByDirection.Select(s=>s.Camera?.Direction).Distinct().Count()!=4 || settingsByDirection.Any(s=>s.Camera is null))
+            throw new ArgumentException("Each rendered direction must be unique.");
+        var folder=Path.Combine(selectedDirectory,"PixelForge-directions-"+Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(folder);
+        var metadata=new List<string>();
+        foreach(var item in outputs)
+        {
+            var settings=settingsByDirection[metadata.Count];
+            var stem=Path.GetFileNameWithoutExtension(settings.Model)+"_"+settings.Camera!.Direction;
+            SaveSpritesheet(item,Path.Combine(folder,stem+".sheet.png"));
+            SaveNative(item,Path.Combine(folder,stem+".aseprite"));
+            SaveFrames(item,folder,stem+".frames");
+            metadata.Add(stem+".sheet.json");
+        }
+        File.WriteAllText(Path.Combine(folder,"directions.json"),System.Text.Json.JsonSerializer.Serialize(new { directions=metadata },AssetSettings.JsonOptions));
+        return folder;
+    }
+
     private static void Copy(string source,string destination)
     {
         destination=Path.GetFullPath(destination);

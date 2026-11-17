@@ -34,8 +34,8 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        ViewInput.ItemsSource=Enum.GetValues<CameraView>();ViewInput.SelectedItem=CameraView.IsometricSE;
-        ProjectionInput.ItemsSource=Enum.GetValues<Projection>();ProjectionInput.SelectedItem=Projection.Dimetric2To1;
+        CameraFamilyInput.ItemsSource=Enum.GetValues<CameraFamily>();
+        ApplyCamera(new AssetSettings());
         OutlineTypeInput.ItemsSource=Enum.GetValues<OutlineStyle>();OutlineTypeInput.SelectedItem=OutlineStyle.OuterSilhouette;
         FitBoundsInput.ItemsSource=new Dictionary<FitBoundsSource,string>{{FitBoundsSource.ObjectOnly,"Object Only"},{FitBoundsSource.ObjectAndGroundShadow,"Object + Ground Shadow"}};FitBoundsInput.SelectedValue=FitBoundsSource.ObjectOnly;
         GroupedModeInput.ItemsSource=Enum.GetValues<GroupedOutlineMode>();GroupedModeInput.SelectedItem=GroupedOutlineMode.Unified;
@@ -119,23 +119,33 @@ public partial class MainWindow : Window
         bool validDensity=TryPreciseText(PixelsPerUnitInput,out var ppu)&&double.IsFinite(ppu)&&ppu>0&&ppu<=2048;
         if(!validDensity&&WorldScaleInput.IsChecked==true)throw new ArgumentException("Enter pixels per unit greater than zero and at most 2048.");
         if(!validDensity)ppu=16;
-        var settings=new AssetSettings{Model=ModelPath.Text,Width=width,Height=height,View=(CameraView)ViewInput.SelectedItem,Projection=(Projection)ProjectionInput.SelectedItem,Padding=padding,WorldScale=WorldScaleInput.IsChecked==true,FitBounds=(FitBoundsSource)FitBoundsInput.SelectedValue,PixelsPerUnit=ppu,SamplesPerPixel=SamplingInput.SelectedIndex==0?3:1,Colors=selectedPalette.Select(c=>c.Hex).ToArray(),LightAzimuth=LightAzimuthInput.Value,LightElevation=LightElevationInput.Value,LightIntensity=LightIntensityInput.Value,AmbientIntensity=AmbientInput.Value,ShadowIntensity=ShadowInput.Value,CastShadows=CastShadowsInput.IsChecked==true,GroundShadows=GroundShadowsInput.IsChecked==true,GroundShadowStrength=GroundStrengthInput.Value,GroundShadowSoftness=GroundSoftnessInput.Value,Outlines=OutlineInput.IsChecked==true,RespectOutlineGroups=RespectGroupsInput.IsChecked==true,GroupedOutlines=(GroupedOutlineMode)GroupedModeInput.SelectedItem,OutlineType=(OutlineStyle)OutlineTypeInput.SelectedItem,OutlineThickness=OutlineThicknessInput.SelectedIndex+1,OutlineColor=OutlineColorInput.Text,EdgeHighlights=EdgeHighlightsInput.IsChecked==true,EdgeHighlightStrength=EdgeStrengthInput.Value};settings=WithAnimationSettings(settings);settings.Validate();return settings;
+        var settings=new AssetSettings{Model=ModelPath.Text,Width=width,Height=height,Padding=padding,WorldScale=WorldScaleInput.IsChecked==true,FitBounds=(FitBoundsSource)FitBoundsInput.SelectedValue,PixelsPerUnit=ppu,SamplesPerPixel=SamplingInput.SelectedIndex==0?3:1,Colors=selectedPalette.Select(c=>c.Hex).ToArray(),LightAzimuth=LightAzimuthInput.Value,LightElevation=LightElevationInput.Value,LightIntensity=LightIntensityInput.Value,AmbientIntensity=AmbientInput.Value,ShadowIntensity=ShadowInput.Value,CastShadows=CastShadowsInput.IsChecked==true,GroundShadows=GroundShadowsInput.IsChecked==true,GroundShadowStrength=GroundStrengthInput.Value,GroundShadowSoftness=GroundSoftnessInput.Value,Outlines=OutlineInput.IsChecked==true,RespectOutlineGroups=RespectGroupsInput.IsChecked==true,GroupedOutlines=(GroupedOutlineMode)GroupedModeInput.SelectedItem,OutlineType=(OutlineStyle)OutlineTypeInput.SelectedItem,OutlineThickness=OutlineThicknessInput.SelectedIndex+1,OutlineColor=OutlineColorInput.Text,EdgeHighlights=EdgeHighlightsInput.IsChecked==true,EdgeHighlightStrength=EdgeStrengthInput.Value};settings=WithAnimationSettings(ReadCamera(settings));settings.Validate();return settings;
     }
     private async void Generate(object sender,RoutedEventArgs e)
     {
         try
         {
             var settings=ReadSettings();session?.ProtectInput(settings.Model);CloseComparison();lastSettings=settings;PausePlayback();cancellation=new();SettingsPanel.IsEnabled=false;GenerateButton.IsEnabled=false;CompareButton.IsEnabled=false;CancelButton.IsEnabled=true;ExportPanel.IsEnabled=false;Progress.IsIndeterminate=true;
-            output=await new ConversionPipeline(tools).Generate(settings,session!.DirectoryPath,new Progress<string>(s=>Status.Text=s),cancellation.Token);
+            var results=await new ConversionPipeline(tools).GenerateDirections(settings,session!.DirectoryPath,new Progress<string>(s=>Status.Text=s),cancellation.Token);
+            foreach(var result in results)
+            {
+                GeneratedAsset.Save(result);sessionOutputs.Add(result);
+                RememberCompleted(result);
+            }
+            var inventoryRoot=results.Length>1?Path.GetDirectoryName(results[0].Directory)!:results[0].Directory;
+            await Task.Run(()=>session!.Snapshot(inventoryRoot));
+            directionalBatch=results.Length>1?results:[];
+
+            output=results.FirstOrDefault(result=>AssetSettings.Load(Path.Combine(result.Directory,"asset.settings.json")).Camera?.Direction==settings.Camera?.Direction)??results[0];
+            UpdateDirectionalControls();
             LoadPlayback(output,settings.Fps);EmptyPreview.Visibility=Visibility.Collapsed;UpdateZoom();ExportPanel.IsEnabled=true;
-            GeneratedAsset.Save(output);sessionOutputs.Add(output);await Task.Run(()=>session!.Snapshot(output.Directory));RememberCompleted(output);
             using var model=JsonDocument.Parse(File.ReadAllText(Path.Combine(output.Directory,"model.json")));ModelInfo.Text=$"{Path.GetFileName(settings.Model)} · {model.RootElement.GetProperty("objects").EnumerateObject().Count()} objects · {model.RootElement.GetProperty("materials").GetArrayLength()} materials";
             OutputInfo.Text=$"{settings.Width} × {settings.Height} · {output.Frames.Length} frame(s) · temporary session · native cels verified\n"+(output.Warnings.Length>0?string.Join("\n",output.Warnings):"Review visual quality and motion; technical validation passed.");
         }catch(OperationCanceledException){Status.Text="Generation canceled. Earlier assets are safe.";}catch(Exception ex){Error(ex);}finally{SettingsPanel.IsEnabled=true;GenerateButton.IsEnabled=true;CompareButton.IsEnabled=true;CancelButton.IsEnabled=false;Progress.IsIndeterminate=false;cancellation?.Dispose();cancellation=null;}
     }
     private void Cancel(object sender,RoutedEventArgs e)=>cancellation?.Cancel();
-    private void SavePng(object sender,RoutedEventArgs e)=>Try(()=>{if(output is null)return;var d=new SaveFileDialog{Filter="PNG sprite|*.png",FileName=Path.GetFileNameWithoutExtension(ModelPath.Text)+".png",OverwritePrompt=true};Prepare(d,"png");if(d.ShowDialog()==true){AssetExport.SaveFrame(output,playback?.CurrentFrame??0,d.FileName);RememberFile("png",d.FileName);Status.Text="Current PNG frame saved: "+d.FileName;}});
-    private void SaveNative(object sender,RoutedEventArgs e)=>Try(()=>{if(output is null||!EnsureTimingApplied())return;var d=new SaveFileDialog{Filter="Aseprite project|*.aseprite",FileName=Path.GetFileNameWithoutExtension(ModelPath.Text)+".aseprite",OverwritePrompt=true};Prepare(d,"native");if(d.ShowDialog()==true){AssetExport.SaveNative(output,d.FileName);RememberFile("native",d.FileName);Status.Text="Aseprite file saved: "+d.FileName;}});
+    private void SavePng(object sender,RoutedEventArgs e)=>Try(()=>{if(output is null)return;var d=new SaveFileDialog{Filter="PNG sprite|*.png",FileName=ExportStem()+".png",OverwritePrompt=true};Prepare(d,"png");if(d.ShowDialog()==true){AssetExport.SaveFrame(output,playback?.CurrentFrame??0,d.FileName);RememberFile("png",d.FileName);Status.Text="Current PNG frame saved: "+d.FileName;}});
+    private void SaveNative(object sender,RoutedEventArgs e)=>Try(()=>{if(output is null||!EnsureTimingApplied())return;var d=new SaveFileDialog{Filter="Aseprite project|*.aseprite",FileName=ExportStem()+".aseprite",OverwritePrompt=true};Prepare(d,"native");if(d.ShowDialog()==true){AssetExport.SaveNative(output,d.FileName);RememberFile("native",d.FileName);Status.Text="Aseprite file saved: "+d.FileName;}});
     private void OpenAseprite(object sender,RoutedEventArgs e)=>Try(()=>{if(output is null||!EnsureTimingApplied())return;if(session?.IsManaged(output.Directory)==true){if(Choose("Preserve editable render","Opening Aseprite preserves this full editable render in the permanent application Library. Use Save As in Aseprite for your chosen destination. External unsaved edits cannot be detected.","Preserve and open","Cancel")!=0)return;PreserveCurrent(sender,e);if(session.IsManaged(output.Directory))return;}if(!File.Exists(tools.Aseprite))throw new FileNotFoundException("Aseprite was not found. Set PIXELFORGE_ASEPRITE to its executable path.");var p=new ProcessStartInfo(tools.Aseprite){UseShellExecute=false};p.ArgumentList.Add(output.Aseprite);Process.Start(p);});
     private void ShowOutput(object sender,RoutedEventArgs e)=>Try(()=>{if(output is not null)Process.Start(new ProcessStartInfo("explorer.exe",output.Directory){UseShellExecute=true});});
     private void SaveSettings(object sender,RoutedEventArgs e)=>Try(()=>{var s=ReadSettings();var d=new SaveFileDialog{Filter="Asset settings|*.json",FileName="asset.settings.json"};Prepare(d,"settings");if(d.ShowDialog()==true){s.Save(d.FileName);RememberFile("settings",d.FileName);}});
@@ -148,7 +158,7 @@ public partial class MainWindow : Window
     private void ApplySettings(AssetSettings s)
     {
         s.Validate();lastSettings=s;ModelPath.Text=s.Model;ModelInfo.Text=Path.GetFileName(s.Model)+" · saved settings";InspectionInfo.Text="Inspect to refresh the Blender source range.";WidthInput.Text=s.Width.ToString();HeightInput.Text=s.Height.ToString();
-        ViewInput.SelectedItem=s.View;ProjectionInput.SelectedItem=s.Projection;PaddingInput.Value=s.Padding;
+        ApplyCamera(s);PaddingInput.Value=s.Padding;
         FitBoundsInput.SelectedValue=s.FitBounds;GroupedModeInput.SelectedItem=s.GroupedOutlines;
         WorldScaleInput.IsChecked=s.WorldScale;SetPreciseText(PixelsPerUnitInput,s.PixelsPerUnit);SamplingInput.SelectedIndex=s.SamplesPerPixel==3?0:1;
         LightAzimuthInput.Value=s.LightAzimuth;LightElevationInput.Value=s.LightElevation;LightIntensityInput.Value=s.LightIntensity;

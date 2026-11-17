@@ -48,6 +48,31 @@ if view in azimuths:
 else:
     direction = Vector({'Top':(0,0,1),'Bottom':(0,0,-1),'Front':(0,-1,0),'Back':(0,1,0),'Left':(-1,0,0),'Right':(1,0,0)}[view])
 orientation = (-direction).to_track_quat('-Z','Y').to_euler()
+camera_selection = job.get('Camera')
+if camera_selection:
+    heading = camera_selection['Direction']
+    preset = camera_selection['Perspective']
+    if camera_selection['Family'] == 'Isometric':
+        turn = math.radians(-45-azimuths['Isometric'+heading])
+        elevation = math.asin(1/math.sqrt(3)) if preset == 'TrueIsometric' else math.asin(.5)
+        a = math.radians(-45)
+    else:
+        heading_angle = {'E':0,'N':90,'W':180,'S':-90}[heading]
+        angles = {'DirectTop':90,'TopDownThreeQuarter':60,'HighTopDown':75,
+                  'DirectBottom':-90,'AngledUnderside':-60,'StraightSide':0,'SlightlyElevatedSide':15}
+        elevation = math.radians(camera_selection.get('Elevation') or angles[preset])
+        turn = math.radians(90-heading_angle)
+        a = math.pi/2
+    assembly = Matrix.Rotation(turn,4,'Z')
+    if preset in ('DirectTop','DirectBottom'):
+        direction = Vector((0,0,1 if preset == 'DirectTop' else -1))
+        up = Vector((0,1,0))
+        orientation = Matrix((up.cross(direction),up,direction)).transposed().to_euler()
+    else:
+        direction = Vector((math.cos(a)*math.cos(elevation),math.sin(a)*math.cos(elevation),math.sin(elevation)))
+        orientation = (-direction).to_track_quat('-Z','Y').to_euler()
+elif view not in azimuths:
+    elevation = math.asin(direction.z)
 basis = orientation.to_matrix()
 az,el = math.radians(job['LightAzimuth']),math.radians(job['LightElevation'])
 world_light = basis @ Vector((math.cos(el)*math.cos(az),math.cos(el)*math.sin(az),math.sin(el)))
@@ -107,13 +132,17 @@ if shadow_enabled:
 offset = basis.transposed() @ pivot
 xmin,xmax = projected_min.x-offset.x,projected_max.x-offset.x
 ymin,ymax = projected_min.y-offset.y,projected_max.y-offset.y
+if job.get('sharedBounds'):
+    xmin,xmax,ymin,ymax = job['sharedBounds']
 aspect = job['Width']/job['Height']; usable = 1-2*job['Padding']; ppu = job['PixelsPerUnit']
 required = [math.ceil((xmax-xmin)*ppu/usable),math.ceil((ymax-ymin)*ppu/usable)]
-json.dump({'projected_world_size':[xmax-xmin,ymax-ymin],'required_pixels':required,'canvas':[job['Width'],job['Height']],
+json.dump({'bounds':[xmin,xmax,ymin,ymax],'projected_world_size':[xmax-xmin,ymax-ymin],'required_pixels':required,'canvas':[job['Width'],job['Height']],
            'pixels_per_unit':ppu,'world_scale':job['WorldScale'],'fit_bounds':job.get('FitBounds','ObjectOnly'),'shared_frames':frames},open(os.path.join(out,'framing.json'),'w'),indent=2)
 if job['WorldScale'] and (required[0]>job['Width'] or required[1]>job['Height']):
     subject = 'The animation' if job['Animation'] else 'The model'
     fail(f"{subject} needs approximately {required[0]}×{required[1]} pixels at {ppu:g} px/unit for the selected fit bounds, but your canvas is {job['Width']}×{job['Height']}. Reduce pixels per unit, increase canvas dimensions, or switch to Fit to Canvas. No rendering was started.")
+if job.get('boundsOnly'):
+    sys.exit(0)
 fit_size = max(ymax-ymin,(xmax-xmin)/aspect)
 if not math.isfinite(fit_size) or fit_size <= 0:
     fail('The selected view has no finite projected extent to frame.')
@@ -196,4 +225,4 @@ for index,frame in enumerate(frames):
     discard(snapshots)
     for material in local_materials:
         if material.users==0:bpy.data.materials.remove(material)
-json.dump({'frames':manifest,'ground_pivot':list(pivot),'ortho_scale':scale,'shared_camera':True},open(os.path.join(out,'frames.json'),'w'),indent=2)
+json.dump({'frames':manifest,'ground_pivot':list(pivot),'ortho_scale':scale,'shared_camera':True,'elevation_degrees':math.degrees(elevation)},open(os.path.join(out,'frames.json'),'w'),indent=2)

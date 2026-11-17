@@ -177,6 +177,52 @@ internal static class ModernUiChecks
         Find<ComboBox>("CompareModeInput").SelectedIndex = 0;
         Find<NumericSlider>("DividerInput").Value = 65; await Layout(); Capture("implemented-comparison");
         Check(hashes.All(h => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(h.Key))) == h.Value), "comparison uses saved pixels without changing image files");
+        Call("CloseComparison");
+        Find<ComboBox>("CameraFamilyInput").SelectedItem=CameraFamily.Top;
+        Check(Find<ComboBox>("ViewInput").Items.Count==4 && Find<ComboBox>("ProjectionInput").Items.Count==3,
+            "Top offers four cardinal directions and three applicable perspectives");
+        Find<ComboBox>("ProjectionInput").SelectedValue=CameraPerspective.TopDownThreeQuarter;
+        Find<NumericSlider>("CameraElevationInput").Value=65;
+        Find<CheckBox>("AllDirectionsInput").IsChecked=true;
+        Find<CheckBox>("AnimationInput").IsChecked=true;
+        Find<TextBox>("EndFrameInput").Text="4";
+        Find<TextBox>("FrameStepInput").Text="3";
+        Find<Expander>("CameraSection").IsExpanded=true;
+        await Layout();
+        Check(!Find<ComboBox>("ViewInput").IsEnabled && Find<StackPanel>("CameraElevationPanel").IsVisible,
+            "batch disables direction selection and tilted Top exposes elevation");
+        var cameraSettings=(AssetSettings)Call("ReadSettings")!;
+        Check(cameraSettings.Camera?.Elevation==65 && cameraSettings.RenderAllDirections,"camera inputs reach asset settings");
+        Call("Generate",window,events);
+        var batchDeadline=DateTime.UtcNow.AddMinutes(4);
+        while(Field("cancellation") is not null && DateTime.UtcNow<batchDeadline)await Task.Delay(100);
+        var directionInput=Find<ComboBox>("RenderedDirectionInput");
+        Check(directionInput.Items.Count==4,"real WPF generation produces four selectable renders");
+        directionInput.SelectedItem=CameraDirection.W;
+        var west=(ConversionOutput)Field("output")!;
+        Check(AssetSettings.Load(Path.Combine(west.Directory,"asset.settings.json")).Camera?.Direction==CameraDirection.W,
+            "direction switching uses the existing West render");
+        var batch=(ConversionOutput[])Field("directionalBatch")!;
+        var batchExport=AssetExport.SaveDirections(batch,exports);
+        Check(Directory.GetFiles(batchExport,"*.aseprite").Length==4 &&
+              Directory.GetFiles(batchExport,"*.sheet.png").Length==4 &&
+              Directory.GetFiles(batchExport,"*.sheet.json").Length==4 &&
+              Directory.GetFiles(batchExport,"frame-*.png",SearchOption.AllDirectories).Length==8 &&
+              File.Exists(Path.Combine(batchExport,"directions.json")),
+            "directional animation exports contain named native documents, sheets, metadata and every frame");
+        await Layout();Capture("camera-dark");
+        Find<RadioButton>("LightTheme").IsChecked=true;await Layout();Capture("camera-light");
+        Call("SavePreferences");
+        foreach(CameraDirection direction in CameraSelection.Directions(CameraFamily.Top))
+        {
+            directionInput.SelectedItem=direction;
+            Call("PreserveCurrentCore");
+        }
+        window.Close();
+        window=new MainWindow();window.Show();await Layout();
+        var restored=(AssetSettings)Call("ReadSettings")!;
+        Check(restored.Camera==cameraSettings.Camera && restored.RenderAllDirections,
+            "camera family, perspective, elevation and batch mode persist across restart");
         window.Close();
         File.WriteAllText(Path.Combine(root, "results.json"), JsonSerializer.Serialize(new { checks, still = still.Directory, animation = animation.Directory, dpi = VisualTreeHelper.GetDpi(window).DpiScaleX }));
         Console.WriteLine($"{checks} modern UI checks passed: {root}");

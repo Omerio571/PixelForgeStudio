@@ -4,6 +4,12 @@ Meaningful development changes, newest first. Historical entries follow saved ve
 
 ## v0.4.0 — Modern desktop workspace
 
+### Camera perspectives
+
+- Added Isometric, Top, Bottom and Side families with direction-specific orthographic presets and adjustable 40–85° Top-Down 3/4.
+- Added four-direction rendering with shared scale and ground alignment, separate previews, and named PNG frame, spritesheet and editable Aseprite exports.
+- Retained original camera settings compatibility and added camera preset, elevation and world scale to export metadata.
+
 ### UI polish and fixes
 
 - Clearly separated Add Colors (HEX / RGB) from collapsed advanced Source Color Indices. Multi-add accepts semicolon/newline/whitespace HEX, RGB and JSON, validates complete batches, preserves order and reports skipped duplicates without partial edits.
