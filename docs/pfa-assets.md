@@ -2,7 +2,7 @@
 
 Open **Tools → Manage Export Profiles**. Set an Assets root, category, enabled layers and direction preference. Expand **Palettes and encoding** to choose GPL palettes and compression. **Save Changes to Profile** persists the selected profile in PixelForge's existing application preferences. Choose an existing profile to switch defaults. Changes made for one export stay in the dialog until explicitly saved.
 
-In everyday use, generate or reopen a render, then choose **Tools → Export Asset (.pfa)**. The active profile fills in the export settings. Edit the asset name if needed and click **Export**. Each direction gets its own folder and one independent file per enabled layer. Existing assets get a new version folder. PixelForge verifies staged files before moving the completed asset into place.
+In everyday use, generate or reopen a render, then choose **Tools → Export Asset / Export All**. The active profile fills in the export settings. Edit the asset name if needed and click **Export**. Each direction gets its own folder and one independent file per enabled layer and checked export format. Existing assets get a new version folder. PixelForge verifies staged files before moving the completed asset into place.
 
 Leave the external PNG overrides blank to use the current render's frames automatically. Explicit overrides can be persisted in a profile. For animation, supply a PNG atlas with the render's existing frame grid. Overrides apply to one direction and must match the frame dimensions and, for technical layers, the base alpha. PixelForge cannot infer whether new opaque pixels describe the same geometry solely from one PNG.
 
@@ -34,13 +34,36 @@ Storage IDs:
 - **1 GrayAlpha:** one grayscale byte, then alpha, per pixel. Expand gray into all RGB channels.
 - **2 Index5:** tightly packed 5-bit indices, least-significant bit first with zero-padded final high bits. No row or frame padding. Index zero is transparent black.
 - **3 IndexAlpha:** one GPL row index (0–255) and one alpha byte per pixel. GPL row zero is a regular RGB color.
+- **4 Index8:** one byte per index, values 0–31. Transparency and GPL lookup are identical to Index5.
+- **5 PlanarBgra:** all blue bytes, then green, red, and alpha planes. Each plane contains all frame pixels in their normal order.
+- **6 PlanarGrayAlpha:** one intensity plane followed by one alpha plane, both in frame order.
 
-Codec IDs are **0 raw** and **1 standard Brotli**. Both use codec version 1. Reject unsupported versions. For Brotli, require all encoded bytes to be consumed and an exact decoded storage length before expanding channels. Then validate the metadata-and-pixels digest. Auto compares raw and Brotli candidates by full serialized size, including palette reference overhead.
+Codec IDs are **0 raw**, **1 standard Brotli**, and **2 frame XOR followed by standard Brotli**. All use codec version 1. Codec 2 requires at least two frames and frame-aligned storage IDs 0, 1, 3, or 4. Frame zero is literal. Each subsequent stored byte is XOR with the corresponding previous frame byte before compression. After bounded Brotli decoding, reverse the XOR from the second frame forward using the already restored previous frame. Existing IDs retain their original meanings. Reject unsupported versions. For Brotli, require all encoded bytes to be consumed and an exact decoded storage length before expanding channels. Then validate the metadata-and-pixels digest. Auto compares all eligible raw, Brotli and frame-XOR Brotli candidates by full serialized size, including palette references. The Brotli-only setting considers both Brotli codecs.
 
 An indexed file stores the slash-separated relative palette path and uppercase hexadecimal SHA-256 of concatenated RGB triplets in GPL row order. It stores no palette colors. Match the RootId by searching ancestor directories for .pixelforge-assets.json, a small JSON object with an Id GUID. Non-indexed files decode without the marker or a palette. Reject malformed paths and out-of-range indices. Normal map RGB is world-space data with +X East, +Y North and +Z Up.
 
-No manifest is required. New codecs can be introduced independently of the profile and viewer workflow. Local remapping, inter-frame compression and collection comparison against JPEG XL remain follow-up experiments.
+No manifest is required. New codecs can be introduced independently of the profile and viewer workflow. JPEG XL is optional for comparison. Local remapping and additional codecs remain separate experiments.
+
+## PNG and WebP Export All
+
+Choose **PNG atlas**, **WebP Lossless (No Metadata)**, or both alongside PFA. Save the profile to persist the format choices. Static layers produce one image each. Animation layers use the existing untrimmed frame grid; one separate JSON per direction supplies rectangles, durations, tags, camera and anchor. PFA files still embed their own timing and placement.
+
+WebP uses the official [cwebp and dwebp utilities](https://developers.google.com/speed/webp/docs/precompiled). Configure executable paths in **Palettes and encoding**, or add them to PATH. They are not bundled. The exporter takes the exact rendered BGRA channels, writes a fresh eight-bit PNG with no source profiles, and uses cwebp lossless, effort 9, exact transparent RGB, and metadata none. It requires a VP8L stream and rejects unexpected RIFF chunks, then decodes with dwebp and checks all four channels across the full atlas. Color-layer bytes keep the renderer's intended appearance. Technical layers remain linear data. External base PNGs with embedded profiles or non-sRGB color hints must be converted to sRGB before export; the exporter will reject them instead of silently changing appearance. See the [cwebp option reference](https://developers.google.com/speed/webp/docs/cwebp).
+
+Enable **Include detailed compression comparison** to write a report per export. It measures old and new PFA, PNG, indexed PNG when exact, and optional WebP and JPEG XL. It lists per-layer payload, prefix, metadata, dimensions, distinct states, transparency, timings, candidate sizes and round-trip verification. Each shared GPL is counted once per PFA collection, alongside the root marker. Atlas totals include the per-direction JSON needed for each format. Sparse tiles and Deflate are measured as diagnostic probes with exact reconstruction. They are not deployed decoders. Dictionaries and additional external compressors are not bundled.
 
 ## Initial sample
 
 The original Mine and PowerStrip exports contain six PFA files totaling 16,631 bytes. With their referenced Base32 GPL (374 bytes) and root marker (45 bytes), the collection is 17,050 bytes. The same render outputs stored as PNG atlases with timing and placement JSON are 29,369 bytes. This two-asset measurement uses an illustrative GPL created for the acceptance test. The requested Assets.zip was not present. JPEG XL was not measured, and these results do not establish a general advantage over it.
+
+## Optimization measurements
+
+The 12-frame, 128×128 Mine10 export was rendered again using the local test settings. Exact baseline sizes were reproduced for the existing four-frame Mine artifacts. The full 12-frame run did not reproduce the reported 4,191 versus 2,987 bytes for plain Brotli. Here plain Index5 was 4,667 bytes and plain Index8 was 4,959. Index8 with frame XOR dropped to 4,093 payload bytes and won on total base-layer size. On the four-frame Mine, plain Index8 beat plain Index5 (2,554 versus 2,922 bytes), which is why Auto tests both.
+
+| Exact collection, including required shared files | Previous PFA | Optimized PFA | RGBA PNG | WebP |
+|---|---:|---:|---:|---:|
+| Mine10, 12 frames | 32,670 | 26,365 | 56,154 | 18,925 |
+| PowerStrip, 2 frames | 3,128 | 2,707 | 2,725 | 1,724 |
+| Four generated directions, 12 independent layers | 18,793 | 17,690 | 21,398 | 10,780 |
+
+For the full Mine10, normal was the largest previous layer (22,718 bytes before shared overhead) and improved to 19,773. Emission fell from 4,158 to 1,372 bytes. Planar technical storage helped the PowerStrip and some other samples. Sparse trials and Deflate remain diagnostic only, and JPEG XL was unmeasured because cjxl and djxl were unavailable. The exact WebP samples used libwebp 1.6.0. Timing in the reports is local wall-clock time and includes file I/O; native WebP timings also include external process startup.

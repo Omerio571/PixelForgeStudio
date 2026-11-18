@@ -15,6 +15,7 @@ internal static class PfaChecks
         root=Path.GetFullPath(root);Directory.CreateDirectory(root);
         Environment.SetEnvironmentVariable("PIXELFORGE_PROFILE",Path.Combine(root,"profile"));
         string assets=Path.Combine(root,"Assets");Directory.CreateDirectory(Path.Combine(assets,"Palettes"));
+        string? webpTools=Environment.GetEnvironmentVariable("PIXELFORGE_WEBP_TEST");
         string name=phase=="first"?"Mine":"PowerStrip";
         if(phase=="first")
         {
@@ -22,6 +23,7 @@ internal static class PfaChecks
                 new[]{"GIMP Palette","Name: acceptance example"}.Concat(colors.Select(c=>$"{c.R} {c.G} {c.B}")));
             PaletteFile(Path.Combine(assets,"Base32.gpl"),
                 new[]{new Rgb(0,0,0)}.Concat(Palette.Default).Concat(Enumerable.Range(1,7).Select(n=>new Rgb((byte)n,0,0))));
+            File.Copy(Path.Combine(assets,"Base32.gpl"),Path.Combine(assets,"Alternate.gpl"));
             PaletteFile(Path.Combine(assets,"Palettes","Emission256.gpl"),Enumerable.Range(0,256).Select(n=>new Rgb((byte)n,(byte)n,(byte)n)));
         }
         Exception? failure=null;
@@ -41,16 +43,46 @@ internal static class PfaChecks
                         if(obj is TextBox textbox)textbox.Text=value;else ((ComboBox)obj!).Text=value;
                     }
                     string ReadText(string key)=>Field(exporter,key) is TextBox textbox?textbox.Text:((ComboBox)Field(exporter,key)!).Text;
+                    var advanced=((ScrollViewer)exporter.Content).Content as StackPanel;
+                    advanced!.Children.OfType<Expander>().Single().IsExpanded=true;
+                    void VerifyPicker(string expected)
+                    {
+                        exporter.UpdateLayout();
+                        var combo=(ComboBox)Field(exporter,"color")!;
+                        if(combo.Template.FindName("PART_EditableTextBox",combo) is not TextBox text||
+                           !text.IsVisible||text.Text!=expected)
+                            throw new InvalidDataException("Palette selection is not rendered in the closed ComboBox.");
+                    }
                     if(phase=="first")
                     {
                         Text("root",assets);Text("color","Base32.gpl");Text("emission","Palettes/Emission256.gpl");
-                        exporter.GetType().GetMethod("Save",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(exporter,[]);
+                        if(webpTools is not null)
+                        {
+                            ((CheckBox)Field(exporter,"pngFormat")!).IsChecked=true;
+                            ((CheckBox)Field(exporter,"webpFormat")!).IsChecked=true;
+                            ((CheckBox)Field(exporter,"reports")!).IsChecked=true;
+                            Text("cwebp",Path.Combine(webpTools,"cwebp.exe"));Text("dwebp",Path.Combine(webpTools,"dwebp.exe"));
+                        }
+                        VerifyPicker("Base32.gpl");
+                        var saveMethod=exporter.GetType().GetMethod("Save",BindingFlags.Instance|BindingFlags.NonPublic)!;
+                        saveMethod.Invoke(exporter,[]);
+                        Text("profileName","Alternate");Text("color","Alternate.gpl");saveMethod.Invoke(exporter,[]);
+                        var picker=(ComboBox)Field(exporter,"profiles")!;
+                        picker.SelectedItem="Hollow Core Default";VerifyPicker("Base32.gpl");
+                        ThemeManager.Apply("Light");
+                        picker.SelectedItem="Alternate";VerifyPicker("Alternate.gpl");
+                        ThemeManager.Apply("Dark");
+                        picker.SelectedItem="Hollow Core Default";VerifyPicker("Base32.gpl");
+                        Console.WriteLine("PASS: closed palette display responds immediately to profile switches in Light and Dark.");
                     }
                     else if(ReadText("root")!=assets||ReadText("color")!="Base32.gpl"||
                             ReadText("emission")!="Palettes/Emission256.gpl"||
                             new[]{"objects","normals","emissions","all"}.Any(k=>((CheckBox)Field(exporter,k)!).IsChecked!=true)||
                             ((ComboBox)Field(exporter,"compression")!).SelectedItem is not PfaCompression.Auto)
                         throw new InvalidDataException("Saved profile did not restore on a new application process.");
+                    VerifyPicker("Base32.gpl");
+                    if(webpTools is not null&&new[]{"pfaFormat","pngFormat","webpFormat"}.Any(k=>((CheckBox)Field(exporter,k)!).IsChecked!=true))
+                        throw new InvalidDataException("Export formats did not persist.");
                     Text("asset",name);
                     await Task.Delay(120);
                     Capture(exporter,Path.Combine(root,phase+"-exporter.png"));
@@ -62,6 +94,17 @@ internal static class PfaChecks
                     if(!status.Text.StartsWith("PASS"))throw new InvalidDataException(status.Text);
                     string folder=Path.Combine(assets,"Machines",name);
                     var paths=Directory.GetFiles(folder,"*.pfa",SearchOption.AllDirectories).Order().ToArray();
+                    if(webpTools is not null)
+                    {
+                        var webps=Directory.GetFiles(folder,"*.webp",SearchOption.AllDirectories);
+                        var pngs=Directory.GetFiles(folder,"*.png",SearchOption.AllDirectories);
+                        if(webps.Length!=3||pngs.Length!=3||!File.Exists(Path.Combine(folder,"compression-report.txt")))
+                            throw new InvalidDataException("Missing multi-format export files or report.");
+                        using var manifest=System.Text.Json.JsonDocument.Parse(File.ReadAllText(Directory.GetFiles(folder,"*.asset.json",SearchOption.AllDirectories).Single()));
+                        var timing=manifest.RootElement.GetProperty("frames").EnumerateArray().Select(f=>f.GetProperty("durationMs").GetInt32());
+                        if(!timing.SequenceEqual(rendered.Frames.Select(f=>f.DurationMs)))throw new InvalidDataException("Atlas manifest timing differs.");
+                        Console.WriteLine("PASS: exported exact verified WebP and PNG atlases with authored animation timing.");
+                    }
                     if(paths.Length!=3)throw new InvalidDataException("Expected three independent layers.");
                     foreach(var path in paths)
                     {
@@ -94,7 +137,7 @@ internal static class PfaChecks
                         Reject(()=>Pfa.Read(relocated));
                         string movedPalette=Path.Combine(moved,"Base32.gpl");
                         File.Copy(Path.Combine(assets,"Base32.gpl"),movedPalette);
-                        if(Pfa.Read(relocated).Storage!="Index5")throw new InvalidDataException("The real base did not use packed five-bit indexing.");
+                        if(Pfa.Read(relocated).Storage is not ("Index5" or "Index8"))throw new InvalidDataException("The real base did not use packed five-bit indexing.");
                         string[] gpl=File.ReadAllLines(movedPalette);gpl[3]="2 3 4";File.WriteAllLines(movedPalette,gpl);
                         Reject(()=>Pfa.Read(relocated));
                         var bytes=File.ReadAllBytes(original);bytes[4]=99;
@@ -113,6 +156,13 @@ internal static class PfaChecks
                         }
                     }
                     var show=typeof(MainWindow).GetMethod("ShowPfa",BindingFlags.Instance|BindingFlags.NonPublic)!;
+                    if(phase=="first"&&Environment.GetEnvironmentVariable("PIXELFORGE_LEGACY_PFA") is {} oldFile)
+                    {
+                        show.Invoke(main,[oldFile]);
+                        var oldViewer=main.OwnedWindows.Cast<Window>().Single(w=>w.Title.StartsWith("Asset Viewer"));
+                        await WaitViewer(oldViewer);oldViewer.Close();
+                        Console.WriteLine("PASS: opened an existing pre-optimization PFA in the WPF viewer.");
+                    }
                     show.Invoke(main,[paths[0]]);
                     var viewer=main.OwnedWindows.Cast<Window>().Single(w=>w.Title.StartsWith("Asset Viewer"));
                     await WaitViewer(viewer);
@@ -145,6 +195,41 @@ internal static class PfaChecks
         thread.SetApartmentState(ApartmentState.STA);thread.Start();thread.Join();
         if(failure is not null)throw new Exception("PFA acceptance",failure);
     }
+    public static async Task Optimize(string root,string reference,string[] directional)
+    {
+        var original=GeneratedAsset.Open(reference);
+        var settings=AssetSettings.Load(Path.Combine(original.Directory,"asset.settings.json")) with {StartFrame=1,EndFrame=12,FrameStep=1,Animation=true};
+        var current=original.Frames.Length==12?original:await new ConversionPipeline(Toolchain.Discover()).Generate(settings,Path.Combine(root,"renders"));
+        if(current!=original)GeneratedAsset.Save(current);
+        if(current.Frames.Length!=12)throw new InvalidDataException("Expected all twelve Mine10 frames.");
+        var defaultTools=Environment.GetEnvironmentVariable("PIXELFORGE_WEBP_TEST")!;
+        var profile=new AssetExportProfile(Root:Path.Combine(Path.GetFullPath(root),"Assets"),BasePalette:"Base32.gpl",
+            ExportWebp:true,ExportPng:true,DetailedReport:true,Cwebp:Path.Combine(defaultTools,"cwebp.exe"),Dwebp:Path.Combine(defaultTools,"dwebp.exe"));
+        var mine=PfaExport.Save(profile,"Mine10Full",[current]);
+        Console.WriteLine(mine.Report);
+        var all=PfaExport.Save(profile,"CardinalWebp",directional.Select(GeneratedAsset.Open).ToArray());
+        if(all.Directions!=4||Directory.GetFiles(all.Directory,"*.webp",SearchOption.AllDirectories).Length!=12)
+            throw new InvalidDataException("Wrong directional WebP file set.");
+        var webpOnly=PfaExport.Save(profile with {ExportPfa=false,ExportPng=false,DetailedReport=false,Normal=false,Emission=false},"WebpOnly",[current]);
+        if(Directory.GetFiles(webpOnly.Directory,"*.pfa",SearchOption.AllDirectories).Length!=0)
+            throw new InvalidDataException("WebP-only export wrote a PFA.");
+        if(Environment.GetEnvironmentVariable("PIXELFORGE_STATIC_TEST") is {} stillPath)
+        {
+            var still=GeneratedAsset.Open(stillPath);
+            var image=IndexedBenchmark.Load(still.Frames[0].Png);
+            int transparent=Enumerable.Range(0,image.Width*image.Height).First(i=>image.Pixels[i*4+3]==0)*4;
+            image.Pixels[transparent]=7;image.Pixels[transparent+1]=31;image.Pixels[transparent+2]=133;
+            string external=Path.Combine(root,"hidden-rgb.png");image.Save(external);
+            if(IndexedBenchmark.Verify(image,IndexedBenchmark.Load(external))!="PASS")throw new InvalidDataException("Static PNG did not preserve hidden RGB.");
+            var staticResult=PfaExport.Save(profile with {ExportPfa=false,ExportPng=false,DetailedReport=false,Normal=false,Emission=false,
+                BasePng=Path.GetFullPath(external)},"StaticExact",[still]);
+            if(!Directory.GetFiles(staticResult.Directory,"*Base.webp",SearchOption.AllDirectories).Any())
+                throw new InvalidDataException("Static WebP did not export.");
+            Console.WriteLine("PASS: static WebP preserved nonzero RGB behind alpha zero.");
+        }
+        Console.WriteLine("PASS: twelve-frame real Mine10; all four directional maps and WebP-only export.");
+    }
+
     public static void Directions(string root,string[] sources)
     {
         var profile=new AssetExportProfile(Root:Path.GetFullPath(root),BasePalette:"Base32.gpl",EmissionPalette:"Palettes/Emission256.gpl");

@@ -51,7 +51,7 @@ public partial class MainWindow
     {
         void Add(string title,Action execute)
         {var item=new MenuItem{Header=title};item.Click+=(_,_)=>execute();menu.Items.Add(item);}
-        Add("Export Asset (.pfa)…",()=>OpenPfaExport(false));
+        Add("Export Asset / Export All…",()=>OpenPfaExport(false));
         Add("Open .pfa…",()=>ChoosePfa(false));
         Add("Open PFA folder…",()=>ChoosePfa(true));
         Add("Manage Export Profiles…",()=>OpenPfaExport(true));

@@ -15,6 +15,9 @@ internal sealed class PfaExportWindow : Window
     private readonly ConversionOutput[] directions;
     private readonly ComboBox profiles=new(),compression=new();
     private readonly ComboBox color=new(){IsEditable=true},normal=new(){IsEditable=true},emission=new(){IsEditable=true};
+    private readonly CheckBox pfaFormat=new(){Content="PFA"},pngFormat=new(){Content="PNG atlas"},
+        webpFormat=new(){Content="WebP Lossless (No Metadata)"},reports=new(){Content="Include detailed compression comparison"};
+    private readonly TextBox cwebp=new(),dwebp=new(),cjxl=new(),djxl=new();
     private readonly TextBox basePng=new(),normalPng=new(),emissionPng=new();
     private readonly TextBox profileName=new(),root=new(),category=new(),asset=new();
     private readonly CheckBox objects=new(){Content="Base color"},normals=new(){Content="Normal"},emissions=new(){Content="Emission"},
@@ -27,7 +30,7 @@ internal sealed class PfaExportWindow : Window
     public PfaExportWindow(AssetExportProfile[] profilesSaved,string active,Action<AssetExportProfile[],string> save,ConversionOutput? source,ConversionOutput[] batch,Func<string,bool> temporary)
     {
         saved=profilesSaved.ToList();persist=save;isTemporary=temporary;render=source;directions=batch;
-        Title="Export Asset · PFA";Width=650;Height=730;MinWidth=470;MinHeight=420;
+        Title="Export Asset · Export All";Width=650;Height=730;MinWidth=470;MinHeight=420;
         WindowStartupLocation=WindowStartupLocation.CenterOwner;
         SetResourceReference(BackgroundProperty,"Window");SetResourceReference(ForegroundProperty,"Text");
         Content=new ScrollViewer{Content=body,VerticalScrollBarVisibility=ScrollBarVisibility.Auto};
@@ -38,6 +41,9 @@ internal sealed class PfaExportWindow : Window
         Field("Category",category);Field("Asset name",asset);
         var layers=new WrapPanel();foreach(var check in new[]{objects,normals,emissions,all}){check.Margin=new Thickness(0,6,12,6);layers.Children.Add(check);}
         body.Children.Add(layers);
+        body.Children.Add(new TextBlock{Text="Export Formats",FontWeight=FontWeights.SemiBold});
+        var formats=new WrapPanel();body.Children.Add(formats);
+        foreach(var check in new[]{pfaFormat,pngFormat,webpFormat}){check.Margin=new Thickness(0,3,12,3);formats.Children.Add(check);}
         body.Children.Add(new TextBlock{Text=source is null?"Save or manage profiles here. Generate or reopen a render to export pixels.":
             $"Current render has base color{(source.NormalSheet is null?"":", normals")}{(source.EmissionSheet is null?"":", emission")} · {source.Frames.Length} frame(s). Uncheck any unavailable layer for a base-only export.",TextWrapping=TextWrapping.Wrap});
         var advanced=new StackPanel();
@@ -45,6 +51,8 @@ internal sealed class PfaExportWindow : Window
         Field("Base GPL (32 rows, index 0 transparent)",color,advanced);
         Field("Normal GPL (optional exact match)",normal,advanced);
         Field("Emission GPL (optional exact match)",emission,advanced);
+        foreach(var palette in new[]{color,normal,emission})
+            palette.SetBinding(ToolTipProperty,new System.Windows.Data.Binding(nameof(ComboBox.Text)){Source=palette});
         var imports=new WrapPanel();advanced.Children.Add(imports);
         foreach(var (label,input) in new[]{("Import base GPL…",color),("Import normal GPL…",normal),("Import emission GPL…",emission)})
         {
@@ -58,6 +66,18 @@ internal sealed class PfaExportWindow : Window
             browse.Click+=(_,_)=>Try(()=>{
                 var dialog=new OpenFileDialog{Filter="PNG|*.png"};
                 if(dialog.ShowDialog(this)==true)input.Text=dialog.FileName;
+            });
+            advanced.Children.Add(browse);
+        }
+        advanced.Children.Add(reports);
+        foreach(var (label,input) in new[]{("cwebp executable (optional if on PATH)",cwebp),("dwebp executable (optional if on PATH)",dwebp),
+            ("cjxl executable (comparison only)",cjxl),("djxl executable (comparison only)",djxl)})
+        {
+            Field(label,input,advanced);
+            var browse=new Button{Content="Browse executable…",HorizontalAlignment=HorizontalAlignment.Left};
+            browse.Click+=(_,_)=>Try(()=>{
+                var picker=new OpenFileDialog{Filter="Executable|*.exe"};
+                if(picker.ShowDialog(this)==true)input.Text=picker.FileName;
             });
             advanced.Children.Add(browse);
         }
@@ -98,13 +118,17 @@ internal sealed class PfaExportWindow : Window
     {
         profileName.Text=p.Name;root.Text=p.Root;category.Text=p.Category;
         objects.IsChecked=p.Base;normals.IsChecked=p.Normal;emissions.IsChecked=p.Emission;all.IsChecked=p.AllDirections;
+        pfaFormat.IsChecked=p.ExportPfa;pngFormat.IsChecked=p.ExportPng;webpFormat.IsChecked=p.ExportWebp;reports.IsChecked=p.DetailedReport;
+        cwebp.Text=p.Cwebp;dwebp.Text=p.Dwebp;cjxl.Text=p.Cjxl;djxl.Text=p.Djxl;
         png.IsChecked=p.PngPreviews;compression.SelectedItem=p.Compression;
         basePng.Text=p.BasePng;normalPng.Text=p.NormalPng;emissionPng.Text=p.EmissionPng;
         Discover();color.Text=p.BasePalette;normal.Text=p.NormalPalette;emission.Text=p.EmissionPalette;
     }
     private AssetExportProfile Draft()=>new(profileName.Text.Trim(),root.Text.Trim(),category.Text.Trim(),color.Text.Trim(),normal.Text.Trim(),
         emission.Text.Trim(),objects.IsChecked==true,normals.IsChecked==true,emissions.IsChecked==true,all.IsChecked==true,
-        (PfaCompression)compression.SelectedItem,png.IsChecked==true,basePng.Text.Trim(),normalPng.Text.Trim(),emissionPng.Text.Trim());
+        (PfaCompression)compression.SelectedItem,png.IsChecked==true,basePng.Text.Trim(),normalPng.Text.Trim(),emissionPng.Text.Trim(),
+        pfaFormat.IsChecked==true,pngFormat.IsChecked==true,webpFormat.IsChecked==true,cwebp.Text.Trim(),dwebp.Text.Trim(),
+        cjxl.Text.Trim(),djxl.Text.Trim(),reports.IsChecked==true);
     private void Save()=>Store(false);
     private void Rename()=>Store(true);
     private void Store(bool rename)
@@ -194,7 +218,12 @@ internal sealed class PfaExportWindow : Window
             names.AddRange(Paths(root.Text).Concat(Paths(Path.Combine(root.Text,"Palettes")))
                 .Select(path=>Path.GetRelativePath(root.Text,path).Replace('\\','/')).Order());
         }
-        color.ItemsSource=normal.ItemsSource=emission.ItemsSource=names;
+        foreach(var palette in new[]{color,normal,emission})
+        {
+            string selection=palette.Text;
+            palette.ItemsSource=names;
+            palette.Text=selection;
+        }
     }
     private async void Export(object sender,RoutedEventArgs e)
     {
@@ -208,9 +237,12 @@ internal sealed class PfaExportWindow : Window
             var selected=draft.AllDirections&&directions.Length>0?directions:[render];
             status.Text="Exporting and verifying each layer… Existing assets get a new version folder.";
             var result=await Task.Run(()=>PfaExport.Save(draft,name,selected,operation.Token));
-            status.Text=$"PASS · {result.Directions} direction(s), {result.Layers} files, {result.Bytes:N0} PFA bytes\n{result.Directory}";
-            Actions(("Open Folder",()=>System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(result.Directory){UseShellExecute=true})),
-                ("Open in Asset Viewer",()=>new PfaViewerWindow(result.Directory,draft.Root){Owner=this}.Show()));
+            status.Text=$"PASS · {result.Directions} direction(s), {result.Layers} files, {result.Bytes:N0} exported bytes\n{result.Directory}";
+            Actions(("Open Folder",()=>System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(result.Directory){UseShellExecute=true})));
+            if(draft.ExportPfa)Actions(("Open in Asset Viewer",()=>new PfaViewerWindow(result.Directory,draft.Root){Owner=this}.Show()));
+            if(result.Report is {} report)
+                Actions(("View compression report",()=>new Window{Owner=this,Title="Compression comparison",Width=850,Height=650,
+                    Content=new TextBox{Text=File.ReadAllText(report),IsReadOnly=true,TextWrapping=TextWrapping.Wrap,VerticalScrollBarVisibility=ScrollBarVisibility.Auto}}.Show()));
         }
         catch(OperationCanceledException){status.Text="Export canceled.";}
         catch(Exception ex){status.Text=ex.Message;}

@@ -15,13 +15,13 @@ public static class IndexedBenchmark
 {
     private static readonly EncodingMethod[] Methods=[EncodingMethod.Packed,EncodingMethod.Runs,EncodingMethod.Brotli];
 
-    public static Raster Load(string path)
+    public static Raster Load(string path,int maxDimension=IndexedCodec.MaxDimension)
     {
         using var stream=File.OpenRead(path);
         var decoder=BitmapDecoder.Create(stream,BitmapCreateOptions.PreservePixelFormat,BitmapCacheOption.OnDemand);
         var frame=decoder.Frames[0];
-        if(frame.PixelWidth is <1 or >IndexedCodec.MaxDimension||frame.PixelHeight is <1 or >IndexedCodec.MaxDimension)
-            throw new InvalidDataException("Image dimensions must be 1–4096 pixels.");
+        if(frame.PixelWidth<1||frame.PixelWidth>maxDimension||frame.PixelHeight<1||frame.PixelHeight>maxDimension||(long)frame.PixelWidth*frame.PixelHeight>33_554_432)
+            throw new InvalidDataException($"Image dimensions exceed the {maxDimension} pixel side or total pixel limit.");
         var image=new FormatConvertedBitmap(frame,PixelFormats.Bgra32,null,0);
         var pixels=new byte[checked(frame.PixelWidth*frame.PixelHeight*4)];
         image.CopyPixels(pixels,frame.PixelWidth*4,0);

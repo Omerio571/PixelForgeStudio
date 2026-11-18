@@ -133,7 +133,10 @@
                 </ControlTemplate>
               </ToggleButton.Template>
             </ToggleButton>
-            <ContentPresenter Margin="9,5,28,5" IsHitTestVisible="False" VerticalAlignment="Center" Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}" />
+            <ContentPresenter x:Name="SelectedValue" Margin="9,5,28,5" IsHitTestVisible="False" VerticalAlignment="Center" Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}" />
+            <TextBox x:Name="PART_EditableTextBox" Visibility="Collapsed" Margin="8,2,26,2"
+                     BorderThickness="0" Background="Transparent" Padding="1,0" VerticalContentAlignment="Center"
+                     Foreground="{TemplateBinding Foreground}" IsReadOnly="{TemplateBinding IsReadOnly}" />
             <Border x:Name="FocusRing" BorderBrush="{DynamicResource Accent}" BorderThickness="2" CornerRadius="6" IsHitTestVisible="False" Visibility="Collapsed" />
             <Popup x:Name="PART_Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}" AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
               <Border Background="{DynamicResource Panel}" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="6" MinWidth="{TemplateBinding ActualWidth}">
@@ -144,6 +147,10 @@
             </Popup>
           </Grid>
           <ControlTemplate.Triggers>
+            <Trigger Property="IsEditable" Value="True">
+              <Setter TargetName="SelectedValue" Property="Visibility" Value="Collapsed" />
+              <Setter TargetName="PART_EditableTextBox" Property="Visibility" Value="Visible" />
+            </Trigger>
             <Trigger Property="IsKeyboardFocusWithin" Value="True">
               <Setter TargetName="FocusRing" Property="Visibility" Value="Visible" />
             </Trigger>

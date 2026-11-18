@@ -2,6 +2,12 @@
 
 Meaningful development changes, newest first. Historical entries follow saved versioned source/documentation and verification records; no historical release dates are assumed.
 
+## Experimental — PFA optimization and WebP Export All
+
+- Fixed visible selection in editable palette pickers and persisted PFA, PNG and lossless WebP format choices.
+- Added exact Index8, planar technical maps and frame-XOR Brotli without reinterpreting existing PFA IDs.
+- Added verified metadata-free WebP atlases and a detailed measured compression report.
+
 ## Experimental — PFA asset workflow
 
 - Added reusable export profiles, independent lossless PFA layers, and direct asset viewing with decoded PNG export.
