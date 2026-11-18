@@ -34,7 +34,7 @@ try {
 Copy-Item -LiteralPath (Join-Path $published 'PixelForge Studio.exe') -Destination $bundle
 Copy-Item -LiteralPath (Join-Path $published 'bridge') -Destination $bundle -Recurse
 foreach ($file in @('Launch PixelForge.cmd','README.md','CHANGELOG.md','LICENSE','THIRD_PARTY_NOTICES.md')) { Copy-Item -LiteralPath (Join-Path $sourceRoot $file) -Destination $bundle }
-foreach ($file in @('docs/USAGE.md','docs/release/PREPARING.md','docs/release/VERIFICATION.md','docs/release/v0.5.0.md','docs/lighting-assets.md','docs/images/app.jpg','docs/images/ui-dark.png','docs/images/ui-light.png','docs/images/grouping.png','docs/images/shadow-fit.png','docs/images/grouping.gif','docs/images/mine.png')) {
+foreach ($file in @('docs/USAGE.md','docs/release/PREPARING.md','docs/release/VERIFICATION.md','docs/release/v0.5.0.md','docs/lighting-assets.md','docs/indexed-image-lab.md','docs/images/app.jpg','docs/images/ui-dark.png','docs/images/ui-light.png','docs/images/grouping.png','docs/images/shadow-fit.png','docs/images/grouping.gif','docs/images/mine.png')) {
     $target = Join-Path $bundle $file
     New-Item -ItemType Directory -Path (Split-Path $target) -Force | Out-Null
     Copy-Item -LiteralPath (Join-Path $sourceRoot $file) -Destination $target

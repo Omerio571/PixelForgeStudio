@@ -62,6 +62,8 @@ In **Camera and Scale**, choose the view type, direction and perspective. Top-Do
 
 **Dynamic Lighting Ready** exports neutral palette art, world-space normals and material emission masks. Switch maps during playback, use **Compare maps** to inspect one frame side by side, or save the bundle for runtime use. See the [lighting asset format](docs/lighting-assets.md).
 
+**Indexed Image Lab** is available under Tools for experimental indexed-image storage and verified compression comparisons. See the [lab and binary formats](docs/indexed-image-lab.md).
+
 ## Building from Source
 
 Install the **Windows .NET 10 SDK** and use PowerShell in the cloned/extracted source folder:

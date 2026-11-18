@@ -1,0 +1,68 @@
+<Window x:Class="PixelForge.Desktop.IndexedLabWindow"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ Title="Indexed Image Lab" Width="1080" Height="820" MinWidth="700" MinHeight="580"
+ Background="{DynamicResource Window}" Foreground="{DynamicResource Text}" WindowStartupLocation="CenterOwner">
+ <Window.Resources>
+  <DrawingBrush x:Key="LabChecker" TileMode="Tile" Viewport="0,0,16,16" ViewportUnits="Absolute">
+   <DrawingBrush.Drawing><DrawingGroup>
+    <GeometryDrawing Brush="#60646B" Geometry="M0,0 H16 V16 H0 Z"/>
+    <GeometryDrawing Brush="#777C84" Geometry="M0,0 H8 V8 H0 Z M8,8 H16 V16 H8 Z"/>
+   </DrawingGroup></DrawingBrush.Drawing>
+  </DrawingBrush>
+ </Window.Resources>
+ <DockPanel Margin="16">
+  <StackPanel DockPanel.Dock="Top">
+   <TextBlock Text="Indexed Image Lab" FontSize="22" FontWeight="SemiBold"/>
+   <TextBlock Text="Compare exact storage of the palette-converted image. Palette and alpha conversion can change the original." TextWrapping="Wrap"/>
+   <WrapPanel Margin="0,8">
+    <Button Content="Assets root…" Click="ChooseRoot"/>
+    <Button Content="Import images…" Click="ChooseImages"/>
+    <Button Content="Import folder…" Click="ChooseFolder"/>
+    <Button Content="Select shared palette…" Click="ChoosePalette"/>
+    <Button Content="Create palette…" Click="CreatePalette"/>
+    <Button Content="Export palette HEX…" Click="ExportPalette"/>
+   </WrapPanel>
+   <TextBlock x:Name="SelectionInfo" TextWrapping="Wrap"/>
+   <Expander Header="Conversion and JPEG XL">
+    <StackPanel Margin="0,6">
+     <WrapPanel>
+      <TextBlock Text="Alpha threshold (1–255)" VerticalAlignment="Center" Margin="0,0,6,0"/>
+      <TextBox x:Name="Alpha" Width="54" Text="128"/>
+      <TextBlock Text="Save encoding" VerticalAlignment="Center" Margin="12,0,6,0"/>
+      <ComboBox x:Name="Method" Width="110"/>
+      <TextBlock Text="Preview zoom" VerticalAlignment="Center" Margin="12,0,6,0"/>
+      <ComboBox x:Name="Zoom" Width="70" SelectionChanged="ZoomChanged"/>
+     </WrapPanel>
+     <DockPanel><Button DockPanel.Dock="Left" Content="cjxl…" Tag="encoder" Click="ChooseTool"/><TextBox x:Name="Encoder" AutomationProperties.Name="cjxl executable"/></DockPanel>
+     <DockPanel><Button DockPanel.Dock="Left" Content="djxl…" Tag="decoder" Click="ChooseTool"/><TextBox x:Name="Decoder" AutomationProperties.Name="djxl executable"/></DockPanel>
+    </StackPanel>
+   </Expander>
+   <WrapPanel Margin="0,6">
+    <Button x:Name="RunButton" Content="Run comparison" Click="RunComparison"/>
+    <Button x:Name="SaveButton" Content="Save .pfi…" Click="SaveImage"/>
+    <Button x:Name="OpenButton" Content="Open .pfi…" Click="OpenImage"/>
+    <Button x:Name="RebindButton" Content="Rebind .pfi…" Click="RebindImage" ToolTip="Use the referenced palette's current contents and save a new file."/>
+    <Button x:Name="ExportButton" Content="Export reconstructed PNG…" Click="ExportPng"/>
+    <Button x:Name="CsvButton" Content="Export results CSV…" Click="ExportCsv"/>
+    <Button x:Name="CancelButton" Content="Cancel" Click="CancelRun" IsEnabled="False"/>
+   </WrapPanel>
+  </StackPanel>
+  <TextBlock x:Name="Status" DockPanel.Dock="Bottom" Margin="0,8,0,0" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+  <TabControl>
+   <TabItem Header="Preview">
+    <Grid Margin="8">
+     <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+     <DockPanel Margin="4"><TextBlock DockPanel.Dock="Top" Text="Original"/><ScrollViewer Background="{StaticResource LabChecker}" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"><Image x:Name="Original" RenderOptions.BitmapScalingMode="NearestNeighbor" Stretch="None" HorizontalAlignment="Left" VerticalAlignment="Top"/></ScrollViewer></DockPanel>
+     <DockPanel Grid.Column="1" Margin="4"><TextBlock DockPanel.Dock="Top" Text="Palette converted"/><ScrollViewer Background="{StaticResource LabChecker}" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"><Image x:Name="Converted" RenderOptions.BitmapScalingMode="NearestNeighbor" Stretch="None" HorizontalAlignment="Left" VerticalAlignment="Top"/></ScrollViewer></DockPanel>
+     <DockPanel Grid.Column="2" Margin="4"><TextBlock x:Name="ReconstructedTitle" DockPanel.Dock="Top" Text="Reconstructed PFI"/><ScrollViewer Background="{StaticResource LabChecker}" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"><Image x:Name="Reconstructed" RenderOptions.BitmapScalingMode="NearestNeighbor" Stretch="None" HorizontalAlignment="Left" VerticalAlignment="Top"/></ScrollViewer></DockPanel>
+    </Grid>
+   </TabItem>
+   <TabItem Header="Results">
+    <DockPanel Margin="8">
+     <TextBox x:Name="Results" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
+    </DockPanel>
+   </TabItem>
+  </TabControl>
+ </DockPanel>
+</Window>

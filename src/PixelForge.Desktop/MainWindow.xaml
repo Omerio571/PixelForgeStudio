@@ -13,6 +13,7 @@
       <DockPanel LastChildFill="True">
         <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
           <Button Content="Open asset…" Click="OpenGeneratedAsset" IsEnabled="{Binding IsEnabled, ElementName=GenerateButton}" />
+          <Button Content="Tools…" Click="ShowLabTools" />
           <Button Content="Settings…" Click="SettingsMenu" IsEnabled="{Binding IsEnabled, ElementName=GenerateButton}" />
           <RadioButton x:Name="DarkTheme" Content="Dark" GroupName="Theme" Style="{StaticResource Segment}" IsChecked="True" Checked="ThemeChanged" />
           <RadioButton x:Name="LightTheme" Content="Light" GroupName="Theme" Style="{StaticResource Segment}" Checked="ThemeChanged" />

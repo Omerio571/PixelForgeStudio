@@ -2,6 +2,7 @@ using System.IO;
 using System.Security.Cryptography;
 using PixelForge.Core;
 
+if(args.Length>0&&args[0]=="--indexed-lab") { await IndexedLabChecks.Run(args[1],args.Skip(2).ToArray()); return; }
 if(args.Length>0&&args[0]=="--emission") { await LightingChecks.Emission(args[1],args[2]); return; }
 if(args.Length>0&&args[0]=="--lighting-maps") { await LightingChecks.Run(args[1],args[2],args[3],args[4]); return; }
 if(args.Length>0&&args[0]=="--camera-verify") { await CameraChecks.Verify(args[1],args[2]); return; }
