@@ -55,12 +55,15 @@ internal static class PfaChecks
                     }
                     if(phase=="first")
                     {
+                        ((CheckBox)Field(exporter,"pfaFormat")!).IsChecked=true;
+                        ((CheckBox)Field(exporter,"webpFormat")!).IsChecked=false;
                         Text("root",assets);Text("color","Base32.gpl");Text("emission","Palettes/Emission256.gpl");
                         if(webpTools is not null)
                         {
                             ((CheckBox)Field(exporter,"pngFormat")!).IsChecked=true;
                             ((CheckBox)Field(exporter,"webpFormat")!).IsChecked=true;
                             ((CheckBox)Field(exporter,"reports")!).IsChecked=true;
+                            ((CheckBox)Field(exporter,"gameMetadata")!).IsChecked=true;
                             Text("cwebp",Path.Combine(webpTools,"cwebp.exe"));Text("dwebp",Path.Combine(webpTools,"dwebp.exe"));
                         }
                         VerifyPicker("Base32.gpl");
@@ -98,10 +101,10 @@ internal static class PfaChecks
                     {
                         var webps=Directory.GetFiles(folder,"*.webp",SearchOption.AllDirectories);
                         var pngs=Directory.GetFiles(folder,"*.png",SearchOption.AllDirectories);
-                        if(webps.Length!=3||pngs.Length!=3||!File.Exists(Path.Combine(folder,"compression-report.txt")))
+                        if(webps.Length!=3||pngs.Length!=3||File.Exists(Path.Combine(folder,"compression-report.txt")))
                             throw new InvalidDataException("Missing multi-format export files or report.");
                         using var manifest=System.Text.Json.JsonDocument.Parse(File.ReadAllText(Directory.GetFiles(folder,"*.asset.json",SearchOption.AllDirectories).Single()));
-                        var timing=manifest.RootElement.GetProperty("frames").EnumerateArray().Select(f=>f.GetProperty("durationMs").GetInt32());
+                        var timing=manifest.RootElement.GetProperty("directions")[0].GetProperty("frames").EnumerateArray().Select(f=>f.GetProperty("durationMs").GetInt32());
                         if(!timing.SequenceEqual(rendered.Frames.Select(f=>f.DurationMs)))throw new InvalidDataException("Atlas manifest timing differs.");
                         Console.WriteLine("PASS: exported exact verified WebP and PNG atlases with authored animation timing.");
                     }

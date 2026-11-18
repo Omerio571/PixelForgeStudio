@@ -101,7 +101,7 @@ public sealed class ConversionPipeline(Toolchain tools)
             cancellation.ThrowIfCancellationRequested();
             var frameDirectory=frame.GetProperty("directory").GetString()!;
             progress?.Report($"Converting pixel frame {frames.Count+1} of {settings.FrameCount}…");
-            var result=await Task.Run(()=>ConvertFrame(settings,frameDirectory,frame.GetProperty("source_frame").GetInt32(),frames.Count,knownIds,names,outlineGroups),cancellation);
+            var result=await Task.Run(()=>ConvertFrame(settings,frameDirectory,frame.GetProperty("source_frame").GetInt32(),frames.Count,knownIds,names,outlineGroups,metadata.RootElement.GetProperty("elevation_degrees").GetDouble()),cancellation);
             frames.Add(result.Layers);foreach(var warning in result.Warnings)warnings.Add(warning);
         }
         string png=Path.Combine(directory,"asset.png"),preview=Path.Combine(directory,"asset.preview.png"),ase=Path.Combine(directory,"asset.aseprite");
@@ -148,7 +148,7 @@ public sealed class ConversionPipeline(Toolchain tools)
         }
     }
 
-    private static (FrameLayers Layers,string[] Warnings) ConvertFrame(AssetSettings settings,string directory,int sourceFrame,int index,int[] ids,JsonElement names,IReadOnlyDictionary<int,int>? outlineGroups)
+    private static (FrameLayers Layers,string[] Warnings) ConvertFrame(AssetSettings settings,string directory,int sourceFrame,int index,int[] ids,JsonElement names,IReadOnlyDictionary<int,int>? outlineGroups,double elevation)
     {
         bool effects=settings.Outlines&&settings.OutlineType==OutlineStyle.Selective||settings.StudioLighting&&!settings.DynamicLighting&&settings.EdgeHighlights&&settings.EdgeHighlightStrength>0;
         var surfaces=effects?SurfaceFrame.Read(Path.Combine(directory,"surfaces.json"),settings):null;
@@ -187,7 +187,8 @@ public sealed class ConversionPipeline(Toolchain tools)
         {
             normal=Path.Combine(directory,"asset.normal.png");
             emission=Path.Combine(directory,"asset.emission.png");
-            var maps=LightingMaps.CreateFrame(Path.Combine(directory,"normals.bin"),image,converted.ObjectIds,converted.OutlineLayer,converted.HighlightLayer,shadow);
+            var maps=LightingMaps.CreateFrame(Path.Combine(directory,"normals.bin"),image,converted.ObjectIds,converted.OutlineLayer,converted.HighlightLayer,shadow,
+                $"{Path.GetFileName(settings.Model)}, {settings.Camera?.Direction.ToString()??settings.View.ToString()}, Blender frame {sourceFrame}, {settings.SamplesPerPixel}× sampling, {elevation:0.##}°; samples {directory}");
             maps.Normal.Save(normal);maps.Emission.Save(emission);
         }
         return(new(new FrameOutput(sourceFrame,png,duration){Normal=normal,Emission=emission},layers.ToArray()),frameWarnings.ToArray());

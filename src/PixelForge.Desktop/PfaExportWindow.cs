@@ -17,6 +17,8 @@ internal sealed class PfaExportWindow : Window
     private readonly ComboBox color=new(){IsEditable=true},normal=new(){IsEditable=true},emission=new(){IsEditable=true};
     private readonly CheckBox pfaFormat=new(){Content="PFA"},pngFormat=new(){Content="PNG atlas"},
         webpFormat=new(){Content="WebP Lossless (No Metadata)"},reports=new(){Content="Include detailed compression comparison"};
+    private readonly CheckBox gameMetadata=new(){Content="Include Game Metadata"};
+    private readonly TextBox webpEffort=new();
     private readonly TextBox cwebp=new(),dwebp=new(),cjxl=new(),djxl=new();
     private readonly TextBox basePng=new(),normalPng=new(),emissionPng=new();
     private readonly TextBox profileName=new(),root=new(),category=new(),asset=new();
@@ -36,7 +38,7 @@ internal sealed class PfaExportWindow : Window
         Content=new ScrollViewer{Content=body,VerticalScrollBarVisibility=ScrollBarVisibility.Auto};
         body.Children.Add(new TextBlock{Text="Export Asset",FontSize=21,FontWeight=FontWeights.SemiBold});
         Field("Saved profile",profiles);
-        Actions(("New",()=>Fill(new())),("Duplicate",()=>profileName.Text+=" Copy"),("Delete",Delete));
+        Actions(("New",()=>Fill(NewProfile())),("Duplicate",()=>profileName.Text+=" Copy"),("Delete",Delete));
         Field("Profile name",profileName);Field("Assets root",root);Actions(("Choose root…",ChooseRoot));
         Field("Category",category);Field("Asset name",asset);
         var layers=new WrapPanel();foreach(var check in new[]{objects,normals,emissions,all}){check.Margin=new Thickness(0,6,12,6);layers.Children.Add(check);}
@@ -44,6 +46,16 @@ internal sealed class PfaExportWindow : Window
         body.Children.Add(new TextBlock{Text="Export Formats",FontWeight=FontWeights.SemiBold});
         var formats=new WrapPanel();body.Children.Add(formats);
         foreach(var check in new[]{pfaFormat,pngFormat,webpFormat}){check.Margin=new Thickness(0,3,12,3);formats.Children.Add(check);}
+        body.Children.Add(gameMetadata);
+        if(source?.Frames.Length>1)
+        {
+            var timing=new TextBlock{Text="WebP atlases do not carry frame rectangles or timing. Enable Game Metadata if your game needs them.",TextWrapping=TextWrapping.Wrap};
+            timing.SetResourceReference(ForegroundProperty,"Muted");
+            body.Children.Add(timing);
+            void UpdateWarning()=>timing.Visibility=webpFormat.IsChecked==true&&gameMetadata.IsChecked!=true?Visibility.Visible:Visibility.Collapsed;
+            webpFormat.Checked+=(_,_)=>UpdateWarning();webpFormat.Unchecked+=(_,_)=>UpdateWarning();
+            gameMetadata.Checked+=(_,_)=>UpdateWarning();gameMetadata.Unchecked+=(_,_)=>UpdateWarning();UpdateWarning();
+        }
         body.Children.Add(new TextBlock{Text=source is null?"Save or manage profiles here. Generate or reopen a render to export pixels.":
             $"Current render has base color{(source.NormalSheet is null?"":", normals")}{(source.EmissionSheet is null?"":", emission")} · {source.Frames.Length} frame(s). Uncheck any unavailable layer for a base-only export.",TextWrapping=TextWrapping.Wrap});
         var advanced=new StackPanel();
@@ -70,6 +82,7 @@ internal sealed class PfaExportWindow : Window
             advanced.Children.Add(browse);
         }
         advanced.Children.Add(reports);
+        Field("WebP lossless effort (0–9)",webpEffort,advanced);
         foreach(var (label,input) in new[]{("cwebp executable (optional if on PATH)",cwebp),("dwebp executable (optional if on PATH)",dwebp),
             ("cjxl executable (comparison only)",cjxl),("djxl executable (comparison only)",djxl)})
         {
@@ -95,7 +108,7 @@ internal sealed class PfaExportWindow : Window
             Fill(profile);persist(saved.ToArray(),name);
         };
         Refresh(active);
-        if(profiles.SelectedItem is null)Fill(new());
+        if(profiles.SelectedItem is null)Fill(NewProfile());
         Closing+=(_,e)=>{if(operation is not null){e.Cancel=true;operation.Cancel();}};
     }
     private void Field(string label,Control control,StackPanel? panel=null)
@@ -114,10 +127,13 @@ internal sealed class PfaExportWindow : Window
         profiles.ItemsSource=saved.Select(p=>p.Name).ToArray();
         profiles.SelectedItem=selected;
     }
+    private static AssetExportProfile NewProfile()=>new(ExportPfa:false,ExportWebp:true);
+
     private void Fill(AssetExportProfile p)
     {
         profileName.Text=p.Name;root.Text=p.Root;category.Text=p.Category;
         objects.IsChecked=p.Base;normals.IsChecked=p.Normal;emissions.IsChecked=p.Emission;all.IsChecked=p.AllDirections;
+        gameMetadata.IsChecked=p.IncludeGameMetadata;webpEffort.Text=p.WebpEffort.ToString();
         pfaFormat.IsChecked=p.ExportPfa;pngFormat.IsChecked=p.ExportPng;webpFormat.IsChecked=p.ExportWebp;reports.IsChecked=p.DetailedReport;
         cwebp.Text=p.Cwebp;dwebp.Text=p.Dwebp;cjxl.Text=p.Cjxl;djxl.Text=p.Djxl;
         png.IsChecked=p.PngPreviews;compression.SelectedItem=p.Compression;
@@ -128,7 +144,8 @@ internal sealed class PfaExportWindow : Window
         emission.Text.Trim(),objects.IsChecked==true,normals.IsChecked==true,emissions.IsChecked==true,all.IsChecked==true,
         (PfaCompression)compression.SelectedItem,png.IsChecked==true,basePng.Text.Trim(),normalPng.Text.Trim(),emissionPng.Text.Trim(),
         pfaFormat.IsChecked==true,pngFormat.IsChecked==true,webpFormat.IsChecked==true,cwebp.Text.Trim(),dwebp.Text.Trim(),
-        cjxl.Text.Trim(),djxl.Text.Trim(),reports.IsChecked==true);
+        cjxl.Text.Trim(),djxl.Text.Trim(),reports.IsChecked==true,gameMetadata.IsChecked==true,
+        int.TryParse(webpEffort.Text,out int effort)&&effort is >=0 and <=9?effort:throw new InvalidDataException("WebP effort must be 0–9."));
     private void Save()=>Store(false);
     private void Rename()=>Store(true);
     private void Store(bool rename)
@@ -137,7 +154,7 @@ internal sealed class PfaExportWindow : Window
         if(string.IsNullOrWhiteSpace(p.Name)||!Directory.Exists(p.Root)||!Path.IsPathFullyQualified(p.Root))
             throw new InvalidDataException("Name the profile and select an existing Assets root.");
         Pfa.Segment(p.Category);
-        foreach(var reference in new[]{p.BasePalette,p.NormalPalette,p.EmissionPalette}.Where(x=>x.Length>0))
+        if(p.ExportPfa)foreach(var reference in new[]{p.BasePalette,p.NormalPalette,p.EmissionPalette}.Where(x=>x.Length>0))
             if(!File.Exists(Pfa.PalettePath(p.Root,reference)))throw new FileNotFoundException("Required GPL palette: "+reference);
         int index=saved.FindIndex(x=>x.Name.Equals(p.Name,StringComparison.OrdinalIgnoreCase));
         if(rename&&profiles.SelectedItem is string old)
@@ -154,7 +171,7 @@ internal sealed class PfaExportWindow : Window
            MessageBox.Show(this,"Delete the saved profile "+name+"? Exported assets stay on disk.","Delete profile",MessageBoxButton.YesNo)!=MessageBoxResult.Yes)return;
         saved.RemoveAll(p=>p.Name==name);
         string next=saved.FirstOrDefault()?.Name??"";Refresh(next);persist(saved.ToArray(),next);
-        if(next.Length==0)Fill(new());
+        if(next.Length==0)Fill(NewProfile());
     }
     private void ChooseRoot()
     {
@@ -240,9 +257,16 @@ internal sealed class PfaExportWindow : Window
             status.Text=$"PASS · {result.Directions} direction(s), {result.Layers} files, {result.Bytes:N0} exported bytes\n{result.Directory}";
             Actions(("Open Folder",()=>System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(result.Directory){UseShellExecute=true})));
             if(draft.ExportPfa)Actions(("Open in Asset Viewer",()=>new PfaViewerWindow(result.Directory,draft.Root){Owner=this}.Show()));
+            Actions(("View exported file sizes",()=>{
+                string summary=string.Join(Environment.NewLine,Directory.EnumerateFiles(result.Directory,"*",SearchOption.AllDirectories)
+                    .Order().Select(file=>$"{Path.GetRelativePath(result.Directory,file)}   {new FileInfo(file).Length:N0} bytes"));
+                new Window{Owner=this,Title="Exact export results",Width=760,Height=490,
+                    Content=new TextBox{Text=$"PASS · {result.Bytes:N0} bytes total\n\n"+summary,IsReadOnly=true,
+                        VerticalScrollBarVisibility=ScrollBarVisibility.Auto}}.Show();
+            }));
             if(result.Report is {} report)
                 Actions(("View compression report",()=>new Window{Owner=this,Title="Compression comparison",Width=850,Height=650,
-                    Content=new TextBox{Text=File.ReadAllText(report),IsReadOnly=true,TextWrapping=TextWrapping.Wrap,VerticalScrollBarVisibility=ScrollBarVisibility.Auto}}.Show()));
+                    Content=new TextBox{Text=report,IsReadOnly=true,TextWrapping=TextWrapping.Wrap,VerticalScrollBarVisibility=ScrollBarVisibility.Auto}}.Show()));
         }
         catch(OperationCanceledException){status.Text="Export canceled.";}
         catch(Exception ex){status.Text=ex.Message;}

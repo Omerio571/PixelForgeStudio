@@ -14,7 +14,7 @@ public static class PfaExport
         if(sources.Length==0||!(profile.Base||profile.Normal||profile.Emission))throw new InvalidDataException("Choose an asset and at least one layer.");
         if(!profile.ExportPfa&&!profile.ExportPng&&!profile.ExportWebp)
             throw new InvalidDataException("Select at least one output format.");
-        if((profile.ExportPfa||profile.DetailedReport)&&profile.Base&&profile.BasePalette.Length>0&&
+        if(profile.ExportPfa&&profile.Base&&profile.BasePalette.Length>0&&
             !File.Exists(Pfa.PalettePath(profile.Root,profile.BasePalette)))
             throw new FileNotFoundException("Required palette: "+profile.BasePalette);
         var cwebp=ExactImageTools.Resolve(profile.Cwebp,"cwebp");var dwebp=ExactImageTools.Resolve(profile.Dwebp,"dwebp");
@@ -22,7 +22,9 @@ public static class PfaExport
             throw new InvalidDataException("WebP export requires cwebp and dwebp. Set their paths under Palettes and encoding, or add both to PATH.");
         if(sources.Length>1&&(profile.Base&&profile.BasePng.Length>0||profile.Normal&&profile.NormalPng.Length>0||profile.Emission&&profile.EmissionPng.Length>0))
             throw new InvalidDataException("External PNGs apply to one direction only. Disable All generated directions or clear the overrides.");
-        var rootId=profile.ExportPfa||profile.DetailedReport?Pfa.RootId(profile.Root,true):Guid.Empty;
+        if(profile.WebpEffort is <0 or >9)throw new InvalidDataException("WebP effort must be 0–9.");
+        var rootId=profile.ExportPfa?Pfa.RootId(profile.Root,true):Guid.Empty;
+        bool webpOnly=profile.ExportWebp&&!profile.ExportPfa&&!profile.ExportPng;
         string category=Path.Combine(profile.Root,profile.Category);
         Directory.CreateDirectory(category);
         if(File.GetAttributes(category).HasFlag(FileAttributes.ReparsePoint))throw new InvalidDataException("Linked asset categories are unsupported.");
@@ -30,10 +32,14 @@ public static class PfaExport
         for(int n=2;Path.Exists(destination);n++)destination=Path.Combine(category,name+"-v"+n);
         string stage=Path.Combine(category,".pfa-stage-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(stage);
         int count=0;long bytes=0;
-        var report=profile.DetailedReport?new PfaCompressionReport(profile.Root):null;
+        string? reportText=null;
         try
         {
             string work=Path.Combine(stage,".work");Directory.CreateDirectory(work);
+            string benchmarkRoot=profile.ExportPfa?profile.Root:Path.Combine(work,"benchmark-root");
+            var report=profile.DetailedReport?new PfaCompressionReport(benchmarkRoot):null;
+            Guid benchmarkId=report is not null&&!profile.ExportPfa?Pfa.RootId(benchmarkRoot,true):rootId;
+            var gameDirections=new List<JsonElement>();
             var tools=new ExactImageTools(work,token);
             var cjxl=ExactImageTools.Resolve(profile.Cjxl,"cjxl");var djxl=ExactImageTools.Resolve(profile.Djxl,"djxl");
             var directions=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -44,7 +50,9 @@ public static class PfaExport
                 var camera=settings.Camera??CameraSelection.FromLegacy(settings.View,settings.Projection);
                 string direction=camera.Direction.ToString() switch {"N"=>"North","E"=>"East","S"=>"South","W"=>"West",var value=>value};
                 if(!directions.Add(direction))throw new InvalidDataException("The source includes the same direction twice.");
-                string folder=Path.Combine(stage,name+direction);Directory.CreateDirectory(folder);
+                string folder=profile.ExportPfa||profile.ExportPng&&!profile.ExportWebp||profile.PngPreviews&&!webpOnly
+                    ?Path.Combine(stage,name+direction):stage;
+                Directory.CreateDirectory(folder);
                 using var metadata=JsonDocument.Parse(File.ReadAllText(source.Metadata??throw new InvalidDataException("Render metadata is missing.")));
                 var root=metadata.RootElement;
                 JsonElement? Get(string key)=>root.TryGetProperty(key,out var node)?node:null;
@@ -82,19 +90,40 @@ public static class PfaExport
                             throw new InvalidDataException($"{direction} {layer} frame {i+1} does not align with base color.");
                     }
                     string stem=name+direction+layer;
-                    var info=new PfaInfo(name,layer,direction,settings.Width,settings.Height,paths.Select(f=>f.DurationMs).ToArray(),rootId,palette,"",placement);
+                    string reference=palette;
+                    if(report is not null&&!profile.ExportPfa&&reference.Length>0)
+                    {
+                        try
+                        {
+                            string original=Pfa.PalettePath(profile.Root,reference);
+                            var paletteFile=new FileInfo(original);
+                            if(!paletteFile.Exists||paletteFile.Length>262144||
+                                (layer==PfaLayer.Base&&Palette.Load(original).Length!=32))
+                                reference="";
+                            else
+                            {
+                                Palette.Load(original);
+                                string copy=Pfa.PalettePath(benchmarkRoot,reference);
+                                Directory.CreateDirectory(Path.GetDirectoryName(copy)!);
+                                if(!File.Exists(copy))File.Copy(original,copy);
+                            }
+                        }
+                        catch(Exception e) when(e is InvalidDataException or IOException or UnauthorizedAccessException or ArgumentException or FormatException)
+                        {reference="";}
+                    }
+                    var info=new PfaInfo(name,layer,direction,settings.Width,settings.Height,paths.Select(f=>f.DurationMs).ToArray(),benchmarkId,reference,"",placement);
                     var exported=new Dictionary<string,string>();layerFiles[layer.ToString()]=exported;
                     PfaImage? written=null;
                     if(profile.ExportPfa||report is not null)
                     {
                         string pfa=Path.Combine(profile.ExportPfa?folder:work,stem+".pfa");
-                        written=Pfa.Write(pfa,profile.Root,info,frames,profile.Compression,token);
+                        written=Pfa.Write(pfa,benchmarkRoot,info,frames,profile.Compression,token);
                         if(profile.ExportPfa)exported["pfa"]=Path.GetFileName(pfa);
                     }
                     if(profile.ExportPng||profile.ExportWebp||report is not null)
                     {
                         var atlas=Atlas(frames,root);
-                        string png=Path.Combine(profile.ExportPng?folder:work,stem+".png");
+                        string png=Path.Combine(profile.ExportPng?(profile.ExportWebp?stage:folder):work,stem+".png");
                         atlas.Save(png);
                         if(IndexedLab.IndexedBenchmark.Verify(atlas,IndexedLab.IndexedBenchmark.Load(png,8192))!="PASS")
                             throw new InvalidDataException("PNG atlas did not reconstruct exactly.");
@@ -103,10 +132,10 @@ public static class PfaExport
                         string webpState="Unavailable: configure cwebp and dwebp",jxlState="Unavailable: configure cjxl and djxl";
                         if((profile.ExportWebp||report is not null)&&cwebp is not null&&dwebp is not null)
                         {
-                            string target=Path.Combine(profile.ExportWebp?folder:work,stem+".webp");
+                            string target=Path.Combine(profile.ExportWebp?stage:work,stem+".webp");
                             try
                             {
-                                var probe=tools.Webp(cwebp,dwebp,png,target,atlas);
+                                var probe=tools.Webp(cwebp,dwebp,png,target,atlas,profile.WebpEffort);
                                 webp=target;webpState=$"{probe.Versions} · {probe.Encode:F1}/{probe.Decode:F1} ms · PASS";
                                 if(profile.ExportWebp)exported["webp"]=Path.GetFileName(target);
                             }
@@ -125,12 +154,12 @@ public static class PfaExport
                         }
                         if(report is not null)
                         {
-                            var baseline=Pfa.Write(Path.Combine(work,stem+".baseline.pfa"),profile.Root,info,frames,profile.Compression,token,baseline:true);
+                            var baseline=Pfa.Write(Path.Combine(work,stem+".baseline.pfa"),benchmarkRoot,info,frames,profile.Compression,token,baseline:true);
                             report.Add(stem,frames,baseline,written!,png,webp,webpState,jxl,jxlState);
                         }
                     }
                     count++;
-                    if(profile.PngPreviews)for(int i=0;i<frames.Length;i++)
+                    if(profile.PngPreviews&&!webpOnly)for(int i=0;i<frames.Length;i++)
                         frames[i].Save(Path.Combine(folder,$"{layer}-{i+1:000}.png"));
                 }
                 if(profile.ExportPng||profile.ExportWebp||report is not null)
@@ -140,8 +169,25 @@ public static class PfaExport
                         version=1,asset=name,direction,placement,canvas=Get("canvas"),width=Get("width"),
                         height=Get("height"),columns=Get("columns"),rows=Get("rows"),frames=Get("frames"),layers=files
                     },AssetSettings.JsonOptions);
-                    if(profile.ExportPng||profile.ExportWebp)
+                    if(profile.ExportPng&&!profile.ExportWebp)
                         File.WriteAllText(Path.Combine(folder,name+direction+".asset.json"),Layout(layerFiles));
+                    if(profile.ExportWebp&&profile.IncludeGameMetadata)
+                    {
+                        var imageFiles=layerFiles.ToDictionary(layer=>layer.Key,layer=>layer.Value
+                            .Where(format=>format.Key is "png" or "webp").ToDictionary(format=>format.Key,format=>format.Value));
+                        var runtimeFrames=root.GetProperty("frames").EnumerateArray().Select(f=>new
+                        {
+                            x=f.GetProperty("x").GetInt32(),y=f.GetProperty("y").GetInt32(),
+                            durationMs=f.GetProperty("durationMs").GetInt32()
+                        }).ToArray();
+                        gameDirections.Add(JsonSerializer.SerializeToElement(new
+                        {
+                            direction,canvas=Get("canvas"),width=Get("width"),height=Get("height"),
+                            columns=Get("columns"),rows=Get("rows"),frameCount=runtimeFrames.Length,frames=runtimeFrames,
+                            pivot=Get("pivot"),camera=Get("camera"),cameraElevation=Get("cameraElevation"),
+                            worldUnitsPerPixel=Get("worldUnitsPerPixel"),tags=Get("tags"),layers=imageFiles
+                        }));
+                    }
                     if(report is not null)
                     {
                         long ManifestBytes(string extension)
@@ -154,11 +200,13 @@ public static class PfaExport
                     }
                 }
             }
-            if(report is not null)File.WriteAllText(Path.Combine(stage,"compression-report.txt"),report.Render());
+            if(gameDirections.Count>0)
+                File.WriteAllText(Path.Combine(stage,name+".asset.json"),JsonSerializer.Serialize(new{version=1,directions=gameDirections}));
+            reportText=report?.Render();
             Directory.Delete(work,true);
             bytes=Directory.EnumerateFiles(stage,"*",SearchOption.AllDirectories).Sum(file=>new FileInfo(file).Length);
             token.ThrowIfCancellationRequested();Directory.Move(stage,destination);
-            return new(destination,directions.Count,count,bytes,report is null?null:Path.Combine(destination,"compression-report.txt"));
+            return new(destination,directions.Count,count,bytes,reportText);
         }
         finally{if(Directory.Exists(stage))Directory.Delete(stage,true);}
     }

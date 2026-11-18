@@ -2,6 +2,11 @@
 
 Meaningful development changes, newest first. Historical entries follow saved versioned source/documentation and verification records; no historical release dates are assumed.
 
+## Unreleased — Image-only WebP and directional normals
+
+- New profiles default to flat WebP-only asset folders. Timing JSON is opt-in and comparison results stay in the exporter.
+- Dynamic normal capture recovers missing geometry samples within the affected pixel using the rendered object ID. Errors include direction, source frame and sampling context.
+
 ## Experimental — PFA optimization and WebP Export All
 
 - Fixed visible selection in editable palette pickers and persisted PFA, PNG and lossless WebP format choices.

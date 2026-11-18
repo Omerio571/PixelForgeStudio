@@ -34,11 +34,11 @@ internal sealed class ExactImageTools(string work,CancellationToken token)
         return version;
     }
 
-    public (string Versions,double Encode,double Decode) Webp(string encoder,string decoder,string png,string output,Raster atlas)
+    public (string Versions,double Encode,double Decode) Webp(string encoder,string decoder,string png,string output,Raster atlas,int effort)
     {
         string version=Version(encoder,"-version")+" / "+Version(decoder,"-version");
         var watch=Stopwatch.StartNew();
-        Run(encoder,"cwebp.log","-lossless","-z","9","-exact","-metadata","none",png,"-o",output);
+        Run(encoder,"cwebp.log","-lossless","-z",effort.ToString(System.Globalization.CultureInfo.InvariantCulture),"-exact","-metadata","none",png,"-o",output);
         double encode=watch.Elapsed.TotalMilliseconds;
         ValidateWebp(output,atlas.Width,atlas.Height);
         watch.Restart();

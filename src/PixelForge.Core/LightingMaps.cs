@@ -8,7 +8,7 @@ public static class LightingMaps
 {
     public static byte Encode(float value)=> (byte)Math.Clamp((int)MathF.Round((value+1)*127.5f),0,255);
 
-    internal static (Raster Normal,Raster Emission) CreateFrame(string samples,Raster color,int[] ids,Raster? outlines,Raster? highlights,Raster? ground)
+    internal static (Raster Normal,Raster Emission) CreateFrame(string samples,Raster color,int[] ids,Raster? outlines,Raster? highlights,Raster? ground,string context)
     {
         int count=color.Width*color.Height;
         var normals=new Vector3[count];
@@ -17,7 +17,7 @@ public static class LightingMaps
         for(int i=0;i<count;i++)
         {
             int candidates=reader.ReadByte();
-            if(candidates>9)throw new InvalidDataException("Invalid normal sample count.");
+            if(candidates>10)throw new InvalidDataException("Invalid normal sample count.");
             for(int n=0;n<candidates;n++)
             {
                 int id=reader.ReadInt32();
@@ -36,19 +36,10 @@ public static class LightingMaps
             Vector3 normal=ids[i]==0&&(ground?.Pixels[i*4+3]??0)!=0?Vector3.UnitZ:normals[i];
             if(!Valid(normal))
             {
-                // Renderer coverage and analytic ray centers can disagree at the silhouette.
-                // Borrow the closest sample from the same visible object only.
-                int x=i%color.Width,y=i/color.Width,best=10;
-                for(int dy=-2;dy<=2;dy++)for(int dx=-2;dx<=2;dx++)
-                {
-                    int xx=x+dx,yy=y+dy,distance=dx*dx+dy*dy;
-                    if(xx<0||xx>=color.Width||yy<0||yy>=color.Height||distance>=best)continue;
-                    int j=yy*color.Width+xx;
-                    if(ids[j]!=ids[i]||!Valid(normals[j]))continue;
-                    normal=normals[j];best=distance;
-                }
+                int x=i%color.Width,y=i/color.Width;
+                bool outline=(outlines?.Pixels[i*4+3]??0)!=0;
+                throw new InvalidDataException($"Normal sampling failed: {context}, pixel ({x}, {y}), canvas {color.Width}×{color.Height}; selected object {ids[i]}, outline={outline}. No valid same-object normal at nominal or recovery subpixels. See normal-sampling.json in the render frame directory when present.");
             }
-            if(!Valid(normal))throw new InvalidDataException($"No matching geometry normal at pixel ({i%color.Width}, {i/color.Width}). Try coverage sampling or a larger canvas.");
             normal=Vector3.Normalize(normal);
             data[i*4]=Encode(normal.Z);data[i*4+1]=Encode(normal.Y);
             data[i*4+2]=Encode(normal.X);data[i*4+3]=255;

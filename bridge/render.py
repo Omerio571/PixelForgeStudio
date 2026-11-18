@@ -204,7 +204,7 @@ for index,frame in enumerate(frames):
     directory = out if not job['Animation'] else os.path.join(out,f'frame-{index:04d}')
     os.makedirs(directory,exist_ok=True)
     render(scene,os.path.join(directory,'render.png'))
-    if dynamic or (job.get('Outlines',False) and job.get('OutlineType')=='Selective') or (job.get('StudioLighting',True) and job.get('EdgeHighlights',False) and job.get('EdgeHighlightStrength',.3)>0):
+    if not dynamic and ((job.get('Outlines',False) and job.get('OutlineType')=='Selective') or (job.get('StudioLighting',True) and job.get('EdgeHighlights',False) and job.get('EdgeHighlightStrength',.3)>0)):
         from surfaces import capture
         progress(f'Capturing evaluated edge geometry {index+1} of {len(frames)}')
         capture(scene,camera,snapshots,assembly,ids,world_light,job,directory)
@@ -216,6 +216,10 @@ for index,frame in enumerate(frames):
         assign(obj,[mask]*max(1,len(obj.material_slots)))
     scene.cycles.samples = 1;scene.view_settings.view_transform = 'Raw';scene.render.filter_size = .01;background.inputs['Strength'].default_value = 0
     render(scene,os.path.join(directory,'ids.png'))
+    if dynamic:
+        from surfaces import capture
+        progress(f'Capturing geometry against rendered ownership {index+1} of {len(frames)}')
+        capture(scene,camera,snapshots,assembly,ids,world_light,job,directory)
     manifest.append({'source_frame':frame,'directory':directory,'camera_scale':scale,'camera_shift':[camera_data.shift_x,camera_data.shift_y]})
     if index==0:
         json.dump({'objects':names,'materials':list(all_materials.values()),'bounds':[list(lo),list(hi)],'elevation_degrees':math.degrees(elevation),'ortho_scale':scale,

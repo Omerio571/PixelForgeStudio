@@ -12,7 +12,7 @@ public enum PfaLayer { Base, Normal, Emission }
 public enum PfaCompression { Auto, Raw, Brotli }
 public sealed record AssetExportProfile(string Name="Hollow Core Default",string Root="",string Category="Machines",
     string BasePalette="",string NormalPalette="",string EmissionPalette="",bool Base=true,bool Normal=true,bool Emission=true,
-    bool AllDirections=true,PfaCompression Compression=PfaCompression.Auto,bool PngPreviews=false,string BasePng="",string NormalPng="",string EmissionPng="",bool ExportPfa=true,bool ExportPng=false,bool ExportWebp=false,string Cwebp="",string Dwebp="",string Cjxl="",string Djxl="",bool DetailedReport=false);
+    bool AllDirections=true,PfaCompression Compression=PfaCompression.Auto,bool PngPreviews=false,string BasePng="",string NormalPng="",string EmissionPng="",bool ExportPfa=true,bool ExportPng=false,bool ExportWebp=false,string Cwebp="",string Dwebp="",string Cjxl="",string Djxl="",bool DetailedReport=false,bool IncludeGameMetadata=false,int WebpEffort=9);
 public sealed record PfaInfo(string Asset,PfaLayer Layer,string Direction,int Width,int Height,int[] Durations,
     Guid RootId,string Palette,string PaletteHash,JsonElement Placement);
 public sealed record PfaTrial(string Storage,string Codec,int StorageBytes,int PayloadBytes,int FileBytes);

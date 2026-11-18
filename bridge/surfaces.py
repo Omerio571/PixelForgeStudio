@@ -1,5 +1,6 @@
 """Optional world-space surface data. Never changes the studio or beauty render."""
-import json, os, struct
+import bpy, json, os, struct
+from array import array
 from collections import Counter
 from mathutils import Vector
 from mathutils.bvhtree import BVHTree
@@ -28,6 +29,44 @@ def material_emission(material):
         return 0
     energy = max(0, strength.default_value * max(color.default_value[:3]))
     return energy / (1 + energy)
+
+def rendered_owners(directory, job, codes):
+    """Read the very same stored ID and coverage bytes used by PixelEngine."""
+    def pixels(name):
+        image=bpy.data.images.load(os.path.join(directory,name), check_existing=False)
+        try:
+            image.colorspace_settings.name='Non-Color'
+            image.alpha_mode='STRAIGHT'
+            data=array('f',[0]) * len(image.pixels)
+            image.pixels.foreach_get(data)
+            return data
+        finally:
+            bpy.data.images.remove(image)
+
+    color, labels = pixels('render.png'), pixels('ids.png')
+    samples=job['SamplesPerPixel']
+    width,height=job['Width']*samples,job['Height']*samples
+    cache={}
+    codes=list(codes)
+    def distance(a,b):
+        return sum((((a>>shift)&255)-((b>>shift)&255))**2 for shift in (0,8,16))
+    for y in range(job['Height']):
+        for x in range(job['Width']):
+            hits={}
+            for sy in range(samples):
+                for sx in range(samples):
+                    p=((height-1-y*samples-sy)*width+x*samples+sx)*4
+                    if round(color[p+3]*255)<128 or round(labels[p+3]*255)<128:
+                        continue
+                    rgb=sum(round(labels[p+c]*255)<<(8*c) for c in range(3))
+                    if rgb not in cache:
+                        cache[rgb]=min(codes,key=lambda code:distance(code,rgb))
+                    hits.setdefault(cache[rgb],[]).append(((sx+.5)/samples,(sy+.5)/samples))
+            if sum(map(len,hits.values()))*2<samples*samples:
+                yield None, []
+            else:
+                winner=min(hits,key=lambda code:(-len(hits[code]),code))
+                yield winner,hits[winner]
 
 def capture(scene, camera, snapshots, assembly, ids, light, job, directory):
     vertices, polygons, descriptions = [], [], []
@@ -63,16 +102,20 @@ def capture(scene, camera, snapshots, assembly, ids, light, job, directory):
     samples = job['SamplesPerPixel']
     pixels = []
     normal_data = bytearray()
+    owners=rendered_owners(directory,job,ids.values()) if dynamic else None
+    recovered=[]
+    unresolved=[]
+    def origin(x,y):
+        u,v=x/job['Width'],y/job['Height']
+        return camera.location + rotation @ Vector((left+(right-left)*u,top-(top-bottom)*v,0))
     undo_presentation = assembly.to_3x3().transposed()
     for y in range(job['Height']):
         for x in range(job['Width']):
             hits = []
             for sy in range(samples):
                 for sx in range(samples):
-                    u=(x+(sx+.5)/samples)/job['Width']
-                    v=(y+(sy+.5)/samples)/job['Height']
-                    origin = camera.location + rotation @ Vector((left+(right-left)*u,top-(top-bottom)*v,0))
-                    point,normal,index,depth = tree.ray_cast(origin,ray,camera.data.clip_end)
+                    start=origin(x+(sx+.5)/samples,y+(sy+.5)/samples)
+                    point,normal,index,depth = tree.ray_cast(start,ray,camera.data.clip_end)
                     if index is not None:
                         code,metal,rough,normal,emission = descriptions[index]
                         if not dynamic and normal.dot(ray)>0: normal=-normal
@@ -86,6 +129,24 @@ def capture(scene, camera, snapshots, assembly, ids, light, job, directory):
                 for hit in hits:
                     if hit[0] not in nearest or hit[2]<nearest[hit[0]][2]:
                         nearest[hit[0]] = hit
+                winner,positions=next(owners)
+                if winner is not None and winner not in nearest:
+                    # A Cycles raster hit can land between analytic sample centers.
+                    # Probe only this pixel and accept only its foremost visible owner.
+                    # Rank by the raster subpixels supporting the selected object.
+                    offsets=sorted((( (u+.5)/16,(v+.5)/16) for v in range(16) for u in range(16)),
+                                   key=lambda uv:min((uv[0]-px)**2+(uv[1]-py)**2 for px,py in positions))
+                    for u,v in offsets:
+                        _,_,face,depth=tree.ray_cast(origin(x+u,y+v),ray,camera.data.clip_end)
+                        if face is None or descriptions[face][0]!=winner:
+                            continue
+                        code,metal,rough,normal,emission=descriptions[face]
+                        nearest[winner]=(code,normal,depth,metal,rough,1.0,emission)
+                        world=(undo_presentation @ normal).normalized()
+                        recovered.append([x,y,winner,face,*world,round(emission*255)])
+                        break
+                    else:
+                        unresolved.append([x,y,winner,sorted(nearest)])
                 normal_data.append(len(nearest))
                 for code,normal,_,_,_,_,emission in nearest.values():
                     world = (undo_presentation @ normal).normalized()
@@ -102,6 +163,9 @@ def capture(scene, camera, snapshots, assembly, ids, light, job, directory):
                            round(sum(h[4] for h in chosen)/count,4),
                            round(sum(h[5] for h in chosen)/count,4)])
     if dynamic:
+        if recovered or unresolved:
+            with open(os.path.join(directory,'normal-sampling.json'),'w') as stream:
+                json.dump({'recovered':recovered,'unresolved':unresolved},stream,separators=(',',':'))
         with open(os.path.join(directory,'normals.bin'),'wb') as stream:
             stream.write(normal_data)
     with open(os.path.join(directory,'surfaces.json'),'w') as stream:

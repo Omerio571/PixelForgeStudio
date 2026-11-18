@@ -2,6 +2,7 @@ using System.IO;
 using System.Security.Cryptography;
 using PixelForge.Core;
 
+if(args.Length>0&&args[0]=="--direction-normals") { await DirectionNormalChecks.Run(args[1],args[2],args.Length>3); return; }
 if(args.Length>0&&args[0]=="--pfa-optimize") { await PfaChecks.Optimize(args[1],args[2],args.Skip(3).ToArray()); return; }
 if(args.Length>0&&args[0]=="--pfa-directions") { PfaChecks.Directions(args[1],args.Skip(2).ToArray()); return; }
 if(args.Length>0&&args[0]=="--pfa-accept") { PfaChecks.Run(args[1],args[2],args[3]); return; }
