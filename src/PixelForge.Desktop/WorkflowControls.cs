@@ -37,7 +37,7 @@ public partial class MainWindow
             string staged=preferencePath+"."+Guid.NewGuid().ToString("N")+".tmp";
             try
             {
-                File.WriteAllText(staged,JsonSerializer.Serialize(new Preferences(outputRoot,ZoomInput.SelectedIndex,CheckerInput.IsChecked==true,GameGroundInput.IsChecked==true,LoopInput.IsChecked==true,lastSettings,NumericControls(true).ToDictionary(c=>c.Name,c=>c.NumericMode),directories.Locations,ManageColors.IsExpanded,paletteName,OutlineColorInput.Text,selectedPalette.Select(c=>c.Hex).ToArray(),ThemeManager.Current,SettingsSections().ToDictionary(c=>c.Name,c=>c.IsExpanded),SettingsWidth.ActualWidth),AssetSettings.JsonOptions));
+                File.WriteAllText(staged,JsonSerializer.Serialize(new Preferences(outputRoot,ZoomInput.SelectedIndex,CheckerInput.IsChecked==true,GameGroundInput.IsChecked==true,LoopInput.IsChecked==true,lastSettings,NumericControls(true).ToDictionary(c=>c.Name,c=>c.NumericMode),directories.Locations,ManageColors.IsExpanded,paletteName,OutlineColorInput.Text,selectedPalette.Select(c=>c.Hex).ToArray(),ThemeManager.Current,SettingsSections().ToDictionary(c=>c.Name,c=>c.IsExpanded),SettingsWidth.ActualWidth,pfaProfiles,activePfaProfile,recentPfa),AssetSettings.JsonOptions));
                 File.Move(staged,preferencePath,true);
             }
             finally{try{File.Delete(staged);}catch(Exception e)when(e is IOException or UnauthorizedAccessException){}}

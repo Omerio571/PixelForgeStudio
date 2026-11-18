@@ -341,7 +341,7 @@ public partial class MainWindow
     private void ShowLabTools(object sender,RoutedEventArgs e)
     {
         var button=(Button)sender;
-        var menu=new ContextMenu{PlacementTarget=button};
+        var menu=new ContextMenu{PlacementTarget=button};AddPfaTools(menu);
         var lab=new MenuItem{Header="Indexed Image Lab…"};
         lab.Click+=(_,_)=>new IndexedLabWindow(ProfileDirectory,selectedPalette){Owner=this}.ShowDialog();
         menu.Items.Add(lab);button.ContextMenu=menu;menu.IsOpen=true;

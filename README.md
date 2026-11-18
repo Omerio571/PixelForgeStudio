@@ -64,6 +64,8 @@ In **Camera and Scale**, choose the view type, direction and perspective. Top-Do
 
 **Indexed Image Lab** is available under Tools for experimental indexed-image storage and verified compression comparisons. See the [lab and binary formats](docs/indexed-image-lab.md).
 
+**PFA asset export** under Tools saves reusable profiles and opens independent compressed layers in the Asset Viewer. See the [PFA workflow and format](docs/pfa-assets.md).
+
 ## Building from Source
 
 Install the **Windows .NET 10 SDK** and use PowerShell in the cloned/extracted source folder:
